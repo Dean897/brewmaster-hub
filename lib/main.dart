@@ -3,9 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/supabase_constants.dart';
 import 'core/theme/app_theme.dart';
-import 'features/home/screens/main_screen.dart';
-import 'features/auth/screens/login_screen.dart';
-import 'features/auth/screens/register_screen.dart';
+import 'features/auth/screens/splash_screen.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -25,7 +24,7 @@ class BrewMasterHubApp extends StatelessWidget {
     return MaterialApp(
       title: 'BrewMaster Hub',
       theme: AppTheme.theme,
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
