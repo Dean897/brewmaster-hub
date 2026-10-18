@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../home/screens/main_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,9 +47,10 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Login berhasil.')));
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -167,7 +170,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Login'),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const RegisterScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'Belum punya akun? Daftar',
                       style: TextStyle(color: AppColors.mediumCoffee),

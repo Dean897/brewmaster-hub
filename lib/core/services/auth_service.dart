@@ -24,4 +24,13 @@ class AuthService {
       rethrow;
     }
   }
+
+  Future<void> createProfile({required String fullName}) async {
+    try {
+      await _supabase.from('profiles').insert({'full_name': fullName});
+    } catch (error) {
+      debugPrint('Profile creation failed: $error');
+      rethrow;
+    }
+  }
 }
