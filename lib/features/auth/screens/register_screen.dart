@@ -59,8 +59,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      await _authService.createProfile(fullName: _nameController.text.trim());
-
       if (!mounted) {
         return;
       }
