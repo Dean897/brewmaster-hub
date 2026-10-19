@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import 'timer_screen.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -41,7 +42,16 @@ class HomeTab extends StatelessWidget {
                 _MenuCard(
                   icon: menu.icon,
                   title: menu.title,
-                  onTap: () {},
+                  onTap: menu.title == 'Timer Seduh'
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (context) => const TimerScreen(),
+                            ),
+                          );
+                        }
+                      : () {},
                 ),
             ],
           ),
