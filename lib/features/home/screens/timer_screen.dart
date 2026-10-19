@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
 import '../../../core/theme/app_colors.dart';
 
@@ -40,6 +41,7 @@ class _TimerScreenState extends State<TimerScreen> {
           _remainingSeconds = 0;
           _isRunning = false;
         });
+        FlutterRingtonePlayer().playAlarm();
         _showFinishedDialog();
         return;
       }
@@ -85,7 +87,10 @@ class _TimerScreenState extends State<TimerScreen> {
           content: const Text('Kopi Anda sudah siap.'),
           actions: [
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                FlutterRingtonePlayer().stop();
+                Navigator.of(context).pop();
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.darkCoffee,
                 foregroundColor: AppColors.ivoryWhite,
@@ -101,6 +106,7 @@ class _TimerScreenState extends State<TimerScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    FlutterRingtonePlayer().stop();
     super.dispose();
   }
 
