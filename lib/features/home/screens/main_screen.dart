@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import 'home_tab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,7 +14,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
-    Center(child: Text('Beranda')),
+    HomeTab(),
     Center(child: Text('Asisten AI')),
     Center(child: Text('Info Global')),
     Center(child: Text('Profil')),
