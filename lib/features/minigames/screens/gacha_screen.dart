@@ -97,6 +97,19 @@ class _GachaScreenState extends State<GachaScreen> {
                 ),
               ),
               const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _showRandomRecipe,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  foregroundColor: AppColors.darkCoffee,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                ),
+                child: const Text('Simulasikan Kocok HP (Untuk Test Web)'),
+              ),
+              const SizedBox(height: 24),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
                 child: _selectedRecipe == null
