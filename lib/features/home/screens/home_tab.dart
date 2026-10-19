@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../minigames/screens/gacha_screen.dart';
 import 'timer_screen.dart';
 
 class HomeTab extends StatelessWidget {
@@ -42,16 +43,23 @@ class HomeTab extends StatelessWidget {
                 _MenuCard(
                   icon: menu.icon,
                   title: menu.title,
-                  onTap: menu.title == 'Timer Seduh'
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (context) => const TimerScreen(),
-                            ),
-                          );
-                        }
-                      : () {},
+                  onTap: () {
+                    if (menu.title == 'Timer Seduh') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const TimerScreen(),
+                        ),
+                      );
+                    } else if (menu.title == 'Kocok Resep') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const GachaScreen(),
+                        ),
+                      );
+                    }
+                  },
                 ),
             ],
           ),
