@@ -252,7 +252,8 @@ class _MapScreenState extends State<MapScreen> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?api_key=${ApiConstants.cartoApiKey}',
+                  urlTemplate:
+                      'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${ApiConstants.cartoApiKey}',
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.example.app',
                 ),
