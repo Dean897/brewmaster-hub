@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../ai_assistant/screens/ai_chat_tab.dart';
+import '../../news/screens/news_tab.dart';
 import 'home_tab.dart';
 
 class MainScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = const [
     HomeTab(),
     AiChatTab(),
-    Center(child: Text('Info Global')),
+    NewsTab(),
     Center(child: Text('Profil')),
   ];
 
