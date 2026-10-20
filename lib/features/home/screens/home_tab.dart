@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../minigames/screens/gacha_screen.dart';
+import '../../minigames/screens/tebak_kopi_screen.dart';
 import 'map_screen.dart';
 import 'timer_screen.dart';
 
@@ -64,6 +65,13 @@ class HomeTab extends StatelessWidget {
                         context,
                         MaterialPageRoute<void>(
                           builder: (context) => const GachaScreen(),
+                        ),
+                      );
+                    } else if (menu.title == 'Tebak Kopi') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const TebakKopiScreen(),
                         ),
                       );
                     }
