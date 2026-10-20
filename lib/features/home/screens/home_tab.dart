@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../minigames/screens/gacha_screen.dart';
 import '../../minigames/screens/tebak_kopi_screen.dart';
 import 'map_screen.dart';
+import 'recipe_book_screen.dart';
 import 'timer_screen.dart';
 
 class HomeTab extends StatelessWidget {
@@ -72,6 +73,13 @@ class HomeTab extends StatelessWidget {
                         context,
                         MaterialPageRoute<void>(
                           builder: (context) => const TebakKopiScreen(),
+                        ),
+                      );
+                    } else if (menu.title == 'Buku Resep') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const RecipeBookScreen(),
                         ),
                       );
                     }
