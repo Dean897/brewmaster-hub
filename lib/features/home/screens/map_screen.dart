@@ -4,6 +4,7 @@ import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
 
 class CoffeeShop {
@@ -30,6 +31,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  final PopupController _popupLayerController = PopupController();
+
   LatLng? _currentLocation;
   bool _isLoading = true;
   String? _locationError;
@@ -245,16 +248,17 @@ class _MapScreenState extends State<MapScreen> {
               options: MapOptions(
                 initialCenter: _currentLocation!,
                 initialZoom: 14.0,
+                onTap: (_, _) => _popupLayerController.hideAllPopups(),
               ),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?api_key=${ApiConstants.cartoApiKey}',
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.example.app',
                 ),
                 PopupMarkerLayer(
                   options: PopupMarkerLayerOptions(
+                    popupController: _popupLayerController,
                     markers: [
                       for (final shop in _coffeeShops)
                         Marker(
