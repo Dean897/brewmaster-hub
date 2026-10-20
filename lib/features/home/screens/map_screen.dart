@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,16 +12,16 @@ class CoffeeShop {
   const CoffeeShop({
     required this.name,
     required this.location,
+    required this.address,
     required this.description,
     required this.rating,
-    required this.review,
   });
 
   final String name;
   final LatLng location;
+  final String address;
   final String description;
   final double rating;
-  final String review;
 }
 
 class MapScreen extends StatefulWidget {
@@ -36,12 +37,13 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _currentLocation;
   bool _isLoading = true;
   String? _locationError;
-  List<CoffeeShop> _coffeeShops = [];
+  List<CoffeeShop> coffeeShops = [];
 
   @override
   void initState() {
     super.initState();
     _loadCurrentLocation();
+    _fetchCoffeeShopsFromSupabase();
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -61,8 +63,7 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _currentLocation = location;
-        _coffeeShops = _createDummyShops(location);
-        _isLoading = false;
+        _isLoading = coffeeShops.isEmpty;
       });
     } catch (error) {
       if (!mounted) {
@@ -76,83 +77,59 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  List<CoffeeShop> _createDummyShops(LatLng center) {
-    return [
-      CoffeeShop(
-        name: 'Kopi Sudut Senja',
-        location: LatLng(center.latitude + 0.0012, center.longitude - 0.0010),
-        description: 'Kedai nyaman dengan pilihan manual brew.',
-        rating: 4.8,
-        review: 'Tempat tenang dan kopinya harum.',
-      ),
-      CoffeeShop(
-        name: 'Brew Veteran',
-        location: LatLng(center.latitude - 0.0011, center.longitude + 0.0013),
-        description: 'Spesialis espresso dan latte art.',
-        rating: 4.6,
-        review: 'Latte-nya lembut dan baristanya ramah.',
-      ),
-      CoffeeShop(
-        name: 'Kedai Pagi',
-        location: LatLng(center.latitude + 0.0018, center.longitude + 0.0017),
-        description: 'Tempat sarapan dengan kopi lokal.',
-        rating: 4.5,
-        review: 'Cocok untuk memulai hari.',
-      ),
-      CoffeeShop(
-        name: 'Ruang Kopi',
-        location: LatLng(center.latitude - 0.0020, center.longitude - 0.0015),
-        description: 'Ruang kerja santai dengan Wi-Fi cepat.',
-        rating: 4.7,
-        review: 'Nyaman untuk bekerja sambil ngopi.',
-      ),
-      CoffeeShop(
-        name: 'Gayo Corner',
-        location: LatLng(center.latitude + 0.0007, center.longitude + 0.0024),
-        description: 'Menyajikan biji kopi Gayo pilihan.',
-        rating: 4.9,
-        review: 'Aroma dan rasa kopinya sangat berkarakter.',
-      ),
-      CoffeeShop(
-        name: 'Kopi Lereng',
-        location: LatLng(center.latitude - 0.0017, center.longitude + 0.0022),
-        description: 'Kopi single origin dengan suasana hangat.',
-        rating: 4.4,
-        review: 'Pilihan single origin-nya menarik.',
-      ),
-      CoffeeShop(
-        name: 'Teras Seduh',
-        location: LatLng(center.latitude + 0.0024, center.longitude - 0.0021),
-        description: 'Kedai terbuka untuk menikmati sore.',
-        rating: 4.6,
-        review: 'Pemandangan dan kopinya sama-sama menyenangkan.',
-      ),
-      CoffeeShop(
-        name: 'Bean House',
-        location: LatLng(center.latitude - 0.0008, center.longitude - 0.0025),
-        description: 'Pilihan biji kopi dan alat seduh rumahan.',
-        rating: 4.3,
-        review: 'Bisa konsultasi alat seduh dengan bebas.',
-      ),
-      CoffeeShop(
-        name: 'Kopi Kampus',
-        location: LatLng(center.latitude + 0.0021, center.longitude + 0.0005),
-        description: 'Kedai ekonomis favorit mahasiswa.',
-        rating: 4.2,
-        review: 'Harga bersahabat dan porsinya pas.',
-      ),
-      CoffeeShop(
-        name: 'Manual Brew Lab',
-        location: LatLng(center.latitude - 0.0024, center.longitude + 0.0004),
-        description: 'Eksperimen rasa melalui beragam metode seduh.',
-        rating: 4.8,
-        review: 'Baristanya membantu memilih profil rasa.',
-      ),
-    ];
+  Future<void> _fetchCoffeeShopsFromSupabase() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('coffee_shops')
+          .select();
+      print('Jumlah kedai didapat: ${response.length}'); // ignore: avoid_print
+      final shops = (response as List<dynamic>).map((item) {
+        final data = item as Map<String, dynamic>;
+        return CoffeeShop(
+          name: data['name']?.toString() ?? 'Kedai Tanpa Nama',
+          location: LatLng(
+            _parseDouble(data['latitude'], 'latitude'),
+            _parseDouble(data['longitude'], 'longitude'),
+          ),
+          address: data['address']?.toString() ?? 'Alamat tidak tersedia',
+          rating: _parseDouble(data['rating'], 'rating'),
+          description:
+              data['description']?.toString() ?? 'Deskripsi tidak tersedia',
+        );
+      }).toList();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        coffeeShops = shops;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetch peta: $e'); // ignore: avoid_print
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _locationError = 'Gagal memuat data kedai: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _parseDouble(Object? value, String fieldName) {
+    final parsed = double.tryParse(value?.toString() ?? '');
+    if (parsed == null) {
+      throw FormatException('Nilai $fieldName tidak valid.');
+    }
+    return parsed;
   }
 
   Widget _buildShopPopup(BuildContext context, Marker marker) {
-    final shop = _coffeeShops.firstWhere(
+    final shop = coffeeShops.firstWhere(
       (item) => item.location == marker.point,
     );
 
@@ -183,7 +160,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              shop.description,
+              shop.address,
               style: const TextStyle(color: AppColors.mediumCoffee),
             ),
             const SizedBox(height: 10),
@@ -206,11 +183,8 @@ class _MapScreenState extends State<MapScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '"${shop.review}"',
-              style: const TextStyle(
-                color: AppColors.darkCoffee,
-                fontStyle: FontStyle.italic,
-              ),
+              shop.description,
+              style: const TextStyle(color: AppColors.darkCoffee),
             ),
           ],
         ),
@@ -261,7 +235,7 @@ class _MapScreenState extends State<MapScreen> {
                   options: PopupMarkerLayerOptions(
                     popupController: _popupLayerController,
                     markers: [
-                      for (final shop in _coffeeShops)
+                      for (final shop in coffeeShops)
                         Marker(
                           point: shop.location,
                           width: 48,
