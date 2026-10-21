@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Gunakan Face ID untuk login ke BrewMaster Hub.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Brewmaster Hub</string>
 	<key>CFBundleExecutable</key>

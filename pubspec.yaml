@@ -14,6 +14,7 @@ dependencies:
   flutter_map: ^8.3.2
   flutter_map_marker_popup: ^8.1.2
   flutter_ringtone_player: ^4.0.0+4
+  flutter_secure_storage: ^11.2.0
   flutter_timezone: 5.1.1
   geolocator: ^14.1.2
   google_generative_ai: ^0.4.7
