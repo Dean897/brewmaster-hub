@@ -34,9 +34,11 @@ class AuthService {
   Future<AuthResponse> loginWithBiometrics() async {
     try {
       final canCheckBiometrics = await _localAuthentication.canCheckBiometrics;
-      if (!canCheckBiometrics) {
+      final availableBiometrics = await _localAuthentication
+          .getAvailableBiometrics();
+      if (!canCheckBiometrics || availableBiometrics.isEmpty) {
         throw const BiometricAuthException(
-          'Perangkat ini tidak mendukung autentikasi biometrik.',
+          'Biometrik belum tersedia atau belum didaftarkan di perangkat.',
         );
       }
 
