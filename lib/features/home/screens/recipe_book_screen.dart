@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../models/recipe_model.dart';
 import 'add_recipe_screen.dart';
 import 'recipe_detail_screen.dart';
 
@@ -16,40 +17,52 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
   final _searchController = TextEditingController();
   final _supabase = Supabase.instance.client;
   final _categories = const ['Semua', 'Espresso', 'Manual Brew', 'Cold Brew'];
-  static const _builtInRecipes = <Map<String, dynamic>>[
-    {
-      'title': 'V60 Manual Brew',
-      'category': 'Manual Brew',
-      'source': 'Resep Utama',
-    },
-    {
-      'title': 'Caramel Macchiato',
-      'category': 'Espresso',
-      'source': 'Resep Utama',
-    },
-    {
-      'title': 'Cold Brew',
-      'category': 'Cold Brew',
-      'source': 'Resep Utama',
-    },
-    {
-      'title': 'Espresso Tonic',
-      'category': 'Espresso',
-      'source': 'Resep Utama',
-    },
+  static const _builtInRecipes = [
+    Recipe(
+      title: 'V60 Manual Brew',
+      category: 'Manual Brew',
+      ingredients: '',
+      instructions: '',
+      duration: 0,
+      source: 'Resep Utama',
+    ),
+    Recipe(
+      title: 'Caramel Macchiato',
+      category: 'Espresso',
+      ingredients: '',
+      instructions: '',
+      duration: 0,
+      source: 'Resep Utama',
+    ),
+    Recipe(
+      title: 'Cold Brew',
+      category: 'Cold Brew',
+      ingredients: '',
+      instructions: '',
+      duration: 0,
+      source: 'Resep Utama',
+    ),
+    Recipe(
+      title: 'Espresso Tonic',
+      category: 'Espresso',
+      ingredients: '',
+      instructions: '',
+      duration: 0,
+      source: 'Resep Utama',
+    ),
   ];
 
-  List<Map<String, dynamic>> _communityRecipes = [];
+  List<Recipe> _communityRecipes = [];
   bool _isLoading = true;
   String? _errorMessage;
   String _selectedCategory = 'Semua';
   String _searchQuery = '';
 
-  List<Map<String, dynamic>> get _filteredRecipes {
+  List<Recipe> get _filteredRecipes {
     final allRecipes = [..._builtInRecipes, ..._communityRecipes];
     return allRecipes.where((recipe) {
-      final title = recipe['title']?.toString().toLowerCase() ?? '';
-      final category = recipe['category']?.toString() ?? '';
+      final title = recipe.title.toLowerCase();
+      final category = recipe.category;
       final matchesSearch = title.contains(_searchQuery.toLowerCase());
       final matchesCategory =
           _selectedCategory == 'Semua' || category == _selectedCategory;
@@ -80,14 +93,13 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
       }
 
       setState(() {
-        _communityRecipes = List<Map<String, dynamic>>.from(
-          response,
-        ).map((recipe) {
-          return {
-            ...recipe,
-            'source': 'Resep Komunitas',
-          };
-        }).toList();
+        _communityRecipes = (response as List<dynamic>)
+            .map(
+              (recipe) => Recipe.fromJson(
+                recipe as Map<String, dynamic>,
+              ),
+            )
+            .toList();
         _isLoading = false;
         _errorMessage = null;
       });
@@ -104,11 +116,12 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
   }
 
   Future<void> _openAddRecipe() async {
-    final wasSaved = await Navigator.of(context).push<bool>(
+    final result = await Navigator.push<bool>(
+      context,
       MaterialPageRoute<bool>(builder: (_) => const AddRecipeScreen()),
     );
 
-    if (wasSaved == true) {
+    if (result == true) {
       await _fetchRecipes();
     }
   }
@@ -225,12 +238,9 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                     itemCount: recipes.length,
                     itemBuilder: (context, index) {
                       final recipe = recipes[index];
-                      final recipeName =
-                          recipe['title']?.toString() ?? 'Tanpa Judul';
-                      final category =
-                          recipe['category']?.toString() ?? 'Lainnya';
-                      final source =
-                          recipe['source']?.toString() ?? 'Resep Komunitas';
+                      final recipeName = recipe.title;
+                      final category = recipe.category;
+                      final source = recipe.source;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 14),

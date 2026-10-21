@@ -60,7 +60,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         return;
       }
 
-      Navigator.of(context).pop(true);
+      Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
         _showMessage('Gagal menyimpan resep: $error');
