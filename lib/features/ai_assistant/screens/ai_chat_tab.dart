@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,8 +18,41 @@ class _AiChatTabState extends State<AiChatTab> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
+  static const _historyKey = 'ai_chat_history';
 
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    final preferences = await SharedPreferences.getInstance();
+    final encoded = preferences.getString(_historyKey);
+    if (encoded == null || !mounted) {
+      return;
+    }
+    final decoded = jsonDecode(encoded);
+    if (decoded is! List) {
+      return;
+    }
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+            (item) => Map<String, String>.from(item),
+          ),
+        );
+    });
+  }
+
+  Future<void> _saveHistory() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_historyKey, jsonEncode(_messages));
+  }
 
   @override
   void dispose() {
@@ -36,6 +72,7 @@ class _AiChatTabState extends State<AiChatTab> {
       _messages.add({'role': 'user', 'text': message});
       _isLoading = true;
     });
+    await _saveHistory();
     _scrollToBottom();
 
     try {
@@ -58,6 +95,7 @@ class _AiChatTabState extends State<AiChatTab> {
               : responseText,
         });
       });
+      await _saveHistory();
       _scrollToBottom();
     } catch (error, stackTrace) {
       debugPrint('Gemini request failed: $error');
@@ -73,6 +111,7 @@ class _AiChatTabState extends State<AiChatTab> {
           'text': 'Maaf, Asisten AI sedang istirahat. Coba lagi nanti!',
         });
       });
+      await _saveHistory();
       _scrollToBottom();
     } finally {
       if (mounted) {
@@ -163,8 +202,7 @@ class _AiChatTabState extends State<AiChatTab> {
                     children: [
                       _QuickPrompt(
                         label: 'Resep Es Kopi Susu',
-                        onPressed: () =>
-                            _sendMessage('Resep Es Kopi Susu'),
+                        onPressed: () => _sendMessage('Resep Es Kopi Susu'),
                       ),
                       _QuickPrompt(
                         label: 'Cara Cold Brew',
@@ -172,8 +210,7 @@ class _AiChatTabState extends State<AiChatTab> {
                       ),
                       _QuickPrompt(
                         label: 'Kopi Asam Lambung',
-                        onPressed: () =>
-                            _sendMessage('Kopi Asam Lambung'),
+                        onPressed: () => _sendMessage('Kopi Asam Lambung'),
                       ),
                     ],
                   ),
@@ -222,10 +259,7 @@ class _AiChatTabState extends State<AiChatTab> {
 }
 
 class _QuickPrompt extends StatelessWidget {
-  const _QuickPrompt({
-    required this.label,
-    required this.onPressed,
-  });
+  const _QuickPrompt({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
 
@@ -25,6 +26,8 @@ class _PourOverScreenState extends State<PourOverScreen> {
   bool _isGameRunning = false;
   Timer? _countdownTimer;
   Timer? _pouringTimer;
+  StreamSubscription<GyroscopeEvent>? _gyroscopeSubscription;
+  DateTime? _lastGyroscopeUpdate;
 
   void _startGame() {
     if (_isGameRunning) {
@@ -40,6 +43,7 @@ class _PourOverScreenState extends State<PourOverScreen> {
       _isPouring = false;
       _isGameRunning = true;
     });
+    _startGyroscope();
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_timeRemaining <= 1) {
@@ -51,6 +55,43 @@ class _PourOverScreenState extends State<PourOverScreen> {
         _timeRemaining--;
       });
     });
+  }
+
+  void _startGyroscope() {
+    _gyroscopeSubscription?.cancel();
+    _gyroscopeSubscription =
+        gyroscopeEventStream(
+          samplingPeriod: const Duration(milliseconds: 100),
+        ).listen(
+          (event) {
+            if (!_isGameRunning) {
+              return;
+            }
+
+            final now = DateTime.now();
+            final lastUpdate = _lastGyroscopeUpdate;
+            if (lastUpdate != null &&
+                now.difference(lastUpdate) < const Duration(milliseconds: 90)) {
+              return;
+            }
+            _lastGyroscopeUpdate = now;
+
+            final tilt = sqrt(event.x * event.x + event.y * event.y);
+            if (tilt < 0.18 || !mounted) {
+              return;
+            }
+
+            setState(() {
+              _waterPoured = min(
+                _maxGlassVolume,
+                _waterPoured + max(0.8, tilt * 1.8),
+              );
+            });
+          },
+          onError: (_) {
+            // The press-and-hold control remains available when a sensor is absent.
+          },
+        );
   }
 
   void _startPouring() {
@@ -131,21 +172,20 @@ class _PourOverScreenState extends State<PourOverScreen> {
         );
       },
     );
-
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
     _pouringTimer?.cancel();
+    _gyroscopeSubscription?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final target = _targetVolume;
-    final waterHeight =
-        (_waterPoured / _maxGlassVolume).clamp(0.0, 1.0) * 260;
+    final waterHeight = (_waterPoured / _maxGlassVolume).clamp(0.0, 1.0) * 260;
     final targetPosition = target == null
         ? null
         : (target / _maxGlassVolume).clamp(0.0, 1.0) * 260;

@@ -104,6 +104,10 @@ class AuthService {
     }
   }
 
+  Future<void> signOut() async {
+    await _supabase.auth.signOut();
+  }
+
   Future<void> _saveBiometricCredentials(String email, String password) async {
     await _secureStorage.write(key: _emailKey, value: email);
     await _secureStorage.write(key: _passwordKey, value: password);
