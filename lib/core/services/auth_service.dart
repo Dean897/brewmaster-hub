@@ -18,24 +18,10 @@ class AuthService {
 
   Future<AuthResponse> signUpWithEmail(String email, String password) async {
     try {
-      final response = await _supabase.auth.signUp(
+      return await _supabase.auth.signUp(
         email: email,
         password: password,
       );
-
-      try {
-        await _supabase.from('profiles').insert({
-          'id': response.user!.id,
-          'full_name': 'Barista Baru',
-          'total_stamps': 0,
-          'exp': 0,
-        });
-      } catch (error) {
-        debugPrint('Profile insert after sign-up failed: $error');
-        rethrow;
-      }
-
-      return response;
     } catch (error) {
       debugPrint('Sign-up failed: $error');
       rethrow;
