@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../models/recipe_model.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
   const RecipeDetailScreen({
-    required this.recipeName,
+    required this.recipe,
     super.key,
   });
 
-  final String recipeName;
+  final Recipe recipe;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(recipeName),
+        title: Text(recipe.title),
         backgroundColor: AppColors.ivoryWhite,
         foregroundColor: AppColors.darkCoffee,
       ),
@@ -47,10 +48,12 @@ class RecipeDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const _IngredientItem(text: '20 gram biji kopi, digiling medium'),
-            const _IngredientItem(text: '250 ml air panas bersuhu 90-94°C'),
-            const _IngredientItem(text: 'Es batu secukupnya'),
-            const _IngredientItem(text: 'Susu atau pemanis sesuai selera'),
+            Text(
+              recipe.ingredients.isEmpty
+                  ? 'Bahan belum tersedia.'
+                  : recipe.ingredients,
+              style: const TextStyle(color: AppColors.darkCoffee),
+            ),
             const SizedBox(height: 24),
             const Text(
               'Langkah Pembuatan',
@@ -61,90 +64,14 @@ class RecipeDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const _StepItem(
-              number: 1,
-              text: 'Siapkan alat seduh dan bilas filter dengan air panas.',
-            ),
-            const _StepItem(
-              number: 2,
-              text: 'Masukkan bubuk kopi, lalu tuangkan air secara perlahan.',
-            ),
-            const _StepItem(
-              number: 3,
-              text: 'Tunggu hingga air selesai menetes dan ekstraksi merata.',
-            ),
-            const _StepItem(
-              number: 4,
-              text: 'Sajikan kopi selagi hangat atau tambahkan es sesuai selera.',
+            Text(
+              recipe.instructions.isEmpty
+                  ? 'Langkah pembuatan belum tersedia.'
+                  : recipe.instructions,
+              style: const TextStyle(color: AppColors.darkCoffee),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _IngredientItem extends StatelessWidget {
-  const _IngredientItem({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '• ',
-            style: TextStyle(
-              color: AppColors.mediumCoffee,
-              fontSize: 18,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: AppColors.darkCoffee),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepItem extends StatelessWidget {
-  const _StepItem({
-    required this.number,
-    required this.text,
-  });
-
-  final int number;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: AppColors.darkCoffee,
-            foregroundColor: AppColors.ivoryWhite,
-            child: Text('$number'),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: AppColors.darkCoffee),
-            ),
-          ),
-        ],
       ),
     );
   }

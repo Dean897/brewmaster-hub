@@ -282,7 +282,7 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                               context,
                               MaterialPageRoute<void>(
                                 builder: (_) => RecipeDetailScreen(
-                                  recipeName: recipeName,
+                                  recipe: recipe,
                                 ),
                               ),
                             );
