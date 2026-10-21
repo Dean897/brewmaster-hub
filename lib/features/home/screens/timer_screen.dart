@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
+import '../../../core/services/brew_timer_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -13,68 +13,48 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> {
-  Timer? _timer;
+  final _timerService = BrewTimerService.instance;
   int _selectedMinutes = 3;
   int _selectedSeconds = 0;
-  int _remainingSeconds = 180;
-  bool _isRunning = false;
+  int _lastCompletionCount = 0;
 
-  String get _formattedTime {
-    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
+  String _formattedTime(int totalSeconds) {
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 
-  void _startTimer() {
-    if (_isRunning || _remainingSeconds <= 0) {
+  @override
+  void initState() {
+    super.initState();
+    _selectedMinutes = _timerService.durationSeconds ~/ 60;
+    _selectedSeconds = _timerService.durationSeconds % 60;
+    _lastCompletionCount = _timerService.completionCount;
+    _timerService.addListener(_handleTimerChanged);
+  }
+
+  void _handleTimerChanged() {
+    if (!mounted) {
       return;
     }
 
-    setState(() {
-      _isRunning = true;
-    });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_remainingSeconds <= 1) {
-        _timer?.cancel();
-        setState(() {
-          _remainingSeconds = 0;
-          _isRunning = false;
-        });
-        FlutterRingtonePlayer().playAlarm();
-        _showFinishedDialog();
-        return;
-      }
-
-      setState(() {
-        _remainingSeconds--;
+    setState(() {});
+    if (_timerService.completionCount != _lastCompletionCount) {
+      _lastCompletionCount = _timerService.completionCount;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FlutterRingtonePlayer().playAlarm();
+          _showFinishedDialog();
+        }
       });
-    });
-  }
-
-  void _pauseTimer() {
-    _timer?.cancel();
-    setState(() {
-      _isRunning = false;
-    });
-  }
-
-  void _resetTimer() {
-    _timer?.cancel();
-    setState(() {
-      _isRunning = false;
-      _remainingSeconds = (_selectedMinutes * 60) + _selectedSeconds;
-    });
-  }
-
-  void _updateDuration() {
-    if (_isRunning) {
-      return;
     }
+  }
 
-    setState(() {
-      _remainingSeconds = (_selectedMinutes * 60) + _selectedSeconds;
-    });
+  Future<void> _updateDuration() {
+    return _timerService.updateDuration(
+      minutes: _selectedMinutes,
+      seconds: _selectedSeconds,
+    );
   }
 
   Future<void> _showFinishedDialog() async {
@@ -89,6 +69,7 @@ class _TimerScreenState extends State<TimerScreen> {
             FilledButton(
               onPressed: () {
                 FlutterRingtonePlayer().stop();
+                NotificationService.instance.cancelTimerCompletion();
                 Navigator.of(context).pop();
               },
               style: FilledButton.styleFrom(
@@ -105,13 +86,13 @@ class _TimerScreenState extends State<TimerScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
-    FlutterRingtonePlayer().stop();
+    _timerService.removeListener(_handleTimerChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isRunning = _timerService.isRunning;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Timer Seduh'),
@@ -130,7 +111,7 @@ class _TimerScreenState extends State<TimerScreen> {
             children: [
               const Spacer(),
               Text(
-                _formattedTime,
+                _formattedTime(_timerService.remainingSeconds),
                 style: const TextStyle(
                   color: AppColors.darkCoffee,
                   fontSize: 72,
@@ -146,15 +127,15 @@ class _TimerScreenState extends State<TimerScreen> {
                     label: 'Menit',
                     value: _selectedMinutes,
                     values: List.generate(60, (index) => index),
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _selectedMinutes = value;
-                      });
-                      _updateDuration();
-                    },
+                    onChanged: isRunning
+                        ? null
+                        : (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() => _selectedMinutes = value);
+                            _updateDuration();
+                          },
                   ),
                   const Padding(
                     padding: EdgeInsets.only(top: 24),
@@ -171,15 +152,15 @@ class _TimerScreenState extends State<TimerScreen> {
                     label: 'Detik',
                     value: _selectedSeconds,
                     values: List.generate(60, (index) => index),
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _selectedSeconds = value;
-                      });
-                      _updateDuration();
-                    },
+                    onChanged: isRunning
+                        ? null
+                        : (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() => _selectedSeconds = value);
+                            _updateDuration();
+                          },
                   ),
                 ],
               ),
@@ -188,7 +169,7 @@ class _TimerScreenState extends State<TimerScreen> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: _isRunning ? null : _startTimer,
+                      onPressed: isRunning ? null : _timerService.start,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.darkCoffee,
                         foregroundColor: AppColors.ivoryWhite,
@@ -199,7 +180,7 @@ class _TimerScreenState extends State<TimerScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isRunning ? _pauseTimer : null,
+                      onPressed: isRunning ? _timerService.pause : null,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.darkCoffee,
                         side: const BorderSide(color: AppColors.mediumCoffee),
@@ -210,7 +191,7 @@ class _TimerScreenState extends State<TimerScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _resetTimer,
+                      onPressed: _timerService.reset,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.darkCoffee,
                         side: const BorderSide(color: AppColors.mediumCoffee),
@@ -239,23 +220,17 @@ class _DurationPicker extends StatelessWidget {
   final String label;
   final int value;
   final List<int> values;
-  final ValueChanged<int?> onChanged;
+  final ValueChanged<int?>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.mediumCoffee),
-        ),
+        Text(label, style: const TextStyle(color: AppColors.mediumCoffee)),
         DropdownButton<int>(
           value: value,
           dropdownColor: AppColors.ivoryWhite,
-          style: const TextStyle(
-            color: AppColors.darkCoffee,
-            fontSize: 18,
-          ),
+          style: const TextStyle(color: AppColors.darkCoffee, fontSize: 18),
           items: values
               .map(
                 (item) => DropdownMenuItem<int>(
