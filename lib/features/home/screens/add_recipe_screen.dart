@@ -18,7 +18,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _durationController = TextEditingController();
   final _supabase = Supabase.instance.client;
 
-  static const _categories = ['Espresso', 'Manual Brew', 'Cold Brew'];
+  static const _categories = [
+    'Espresso Based',
+    'Manual Brew',
+    'Cold Brew',
+    'Mocktail / Coffee Soda',
+  ];
   String _category = _categories.first;
   bool _isSaving = false;
 
