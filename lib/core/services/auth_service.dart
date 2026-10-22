@@ -97,6 +97,15 @@ class AuthService {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+    } catch (error) {
+      debugPrint('Password reset email failed: $error');
+      rethrow;
+    }
+  }
+
   Future<void> createProfile({required String fullName}) async {
     try {
       await _supabase.from('profiles').insert({'full_name': fullName});
