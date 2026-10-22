@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -856,21 +857,32 @@ class DbHelper {
     },
   ];
 
-  Future<List<Map<String, dynamic>>> getQuestions() async {
-    final db = await _getDatabase();
-    var questions = await db.query(_tableName, orderBy: 'RANDOM()');
-
-    if (questions.length < _seedQuestions.length) {
-      await db.transaction((transaction) async {
-        await transaction.delete(_tableName);
-        for (final question in _seedQuestions) {
-          await transaction.insert(_tableName, question);
-        }
-      });
-      questions = await db.query(_tableName, orderBy: 'RANDOM()');
+  Future<List<Map<String, dynamic>>> getQuestions({int limit = 10}) async {
+    if (kIsWeb) {
+      final questions =
+          _seedQuestions
+              .map((question) => Map<String, dynamic>.from(question))
+              .toList()
+            ..shuffle();
+      return questions.take(limit).toList();
     }
 
-    return questions;
+    final db = await _getDatabase();
+    final countResult = await db.rawQuery('SELECT COUNT(*) FROM $_tableName');
+    final questionCount = Sqflite.firstIntValue(countResult) ?? 0;
+
+    if (questionCount < _seedQuestions.length) {
+      await db.transaction((transaction) async {
+        await transaction.delete(_tableName);
+        final batch = transaction.batch();
+        for (final question in _seedQuestions) {
+          batch.insert(_tableName, question);
+        }
+        await batch.commit(noResult: true);
+      });
+    }
+
+    return db.query(_tableName, orderBy: 'RANDOM()', limit: limit);
   }
 
   Future<Database> _getDatabase() async {
