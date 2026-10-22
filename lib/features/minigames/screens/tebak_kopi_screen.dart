@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/database/db_helper.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class Question {
   const Question({
@@ -276,15 +277,7 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
   }
 
   AppBar _buildAppBar() {
-    return AppBar(
-      title: const Text(
-        'Tebak Kopi Arcade',
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      backgroundColor: AppColors.darkCoffee,
-      foregroundColor: AppColors.ivoryWhite,
-      elevation: 0,
-    );
+    return coffeeAppBar(title: 'Tebak Kopi Arcade');
   }
 
   @override

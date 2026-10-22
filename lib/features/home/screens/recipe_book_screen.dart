@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 import '../models/recipe_catalog.dart';
 import '../models/recipe_model.dart';
 import 'add_recipe_screen.dart';
@@ -105,10 +106,8 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
     final recipes = _filteredRecipes;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Buku Resep'),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
+      appBar: coffeeAppBar(
+        title: 'Buku Resep',
         actions: [
           IconButton(
             onPressed: _openAddRecipe,

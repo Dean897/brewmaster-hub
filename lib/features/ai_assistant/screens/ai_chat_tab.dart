@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class AiChatTab extends StatefulWidget {
   const AiChatTab({super.key});
@@ -136,124 +137,136 @@ class _AiChatTabState extends State<AiChatTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          Expanded(
-            child: _messages.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Tanyakan apa saja tentang kopi kepada asisten AI.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.mediumCoffee),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isUser = message['role'] == 'user';
-
-                      return Align(
-                        alignment: isUser
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isUser
-                                ? AppColors.darkCoffee
-                                : AppColors.lightCream,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            message['text'] ?? '',
-                            style: TextStyle(
-                              color: isUser
-                                  ? AppColors.ivoryWhite
-                                  : AppColors.darkCoffee,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: LinearProgressIndicator(
-                color: AppColors.mediumCoffee,
-                backgroundColor: AppColors.lightCream,
-              ),
-            ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            color: AppColors.ivoryWhite,
+    return Column(
+      children: [
+        coffeeAppBar(title: 'Asisten AI'),
+        Expanded(
+          child: SafeArea(
+            top: false,
             child: Column(
               children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+                Expanded(
+                  child: _messages.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Tanyakan apa saja tentang kopi kepada asisten AI.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.mediumCoffee),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            final isUser = message['role'] == 'user';
+
+                            return Align(
+                              alignment: isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 320,
+                                ),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isUser
+                                      ? AppColors.darkCoffee
+                                      : AppColors.lightCream,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  message['text'] ?? '',
+                                  style: TextStyle(
+                                    color: isUser
+                                        ? AppColors.ivoryWhite
+                                        : AppColors.darkCoffee,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: LinearProgressIndicator(
+                      color: AppColors.mediumCoffee,
+                      backgroundColor: AppColors.lightCream,
+                    ),
+                  ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  color: AppColors.ivoryWhite,
+                  child: Column(
                     children: [
-                      _QuickPrompt(
-                        label: 'Resep Es Kopi Susu',
-                        onPressed: () => _sendMessage('Resep Es Kopi Susu'),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _QuickPrompt(
+                              label: 'Resep Es Kopi Susu',
+                              onPressed: () =>
+                                  _sendMessage('Resep Es Kopi Susu'),
+                            ),
+                            _QuickPrompt(
+                              label: 'Cara Cold Brew',
+                              onPressed: () => _sendMessage('Cara Cold Brew'),
+                            ),
+                            _QuickPrompt(
+                              label: 'Kopi Asam Lambung',
+                              onPressed: () =>
+                                  _sendMessage('Kopi Asam Lambung'),
+                            ),
+                          ],
+                        ),
                       ),
-                      _QuickPrompt(
-                        label: 'Cara Cold Brew',
-                        onPressed: () => _sendMessage('Cara Cold Brew'),
-                      ),
-                      _QuickPrompt(
-                        label: 'Kopi Asam Lambung',
-                        onPressed: () => _sendMessage('Kopi Asam Lambung'),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: _sendMessage,
+                              decoration: InputDecoration(
+                                hintText: 'Tulis pesan...',
+                                filled: true,
+                                fillColor: AppColors.lightCream,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => _sendMessage(_messageController.text),
+                            icon: const Icon(Icons.send),
+                            color: AppColors.darkCoffee,
+                            tooltip: 'Kirim',
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: _sendMessage,
-                        decoration: InputDecoration(
-                          hintText: 'Tulis pesan...',
-                          filled: true,
-                          fillColor: AppColors.lightCream,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () => _sendMessage(_messageController.text),
-                      icon: const Icon(Icons.send),
-                      color: AppColors.darkCoffee,
-                      tooltip: 'Kirim',
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

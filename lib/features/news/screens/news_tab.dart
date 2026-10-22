@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:webfeed_plus/webfeed_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class NewsTab extends StatefulWidget {
   const NewsTab({super.key});
@@ -193,11 +194,7 @@ class _NewsTabState extends State<NewsTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.ivoryWhite,
-      appBar: AppBar(
-        title: const Text('Info Global'),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
-      ),
+      appBar: coffeeAppBar(title: 'Info Global'),
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([_fetchRates(), _fetchNews()]);

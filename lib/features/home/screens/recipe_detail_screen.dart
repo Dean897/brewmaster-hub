@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 import '../models/recipe_model.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
-  const RecipeDetailScreen({
-    required this.recipe,
-    super.key,
-  });
+  const RecipeDetailScreen({required this.recipe, super.key});
 
   final Recipe recipe;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(recipe.title),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
-      ),
+      appBar: coffeeAppBar(title: recipe.title),
       backgroundColor: AppColors.ivoryWhite,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

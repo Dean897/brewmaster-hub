@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class PourOverScreen extends StatefulWidget {
   const PourOverScreen({super.key});
@@ -191,11 +192,7 @@ class _PourOverScreenState extends State<PourOverScreen> {
         : (target / _maxGlassVolume).clamp(0.0, 1.0) * 260;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pour-Over Challenge'),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
-      ),
+      appBar: coffeeAppBar(title: 'Pour-Over Challenge'),
       backgroundColor: AppColors.ivoryWhite,
       body: SafeArea(
         child: Padding(
@@ -288,10 +285,11 @@ class _PourOverScreenState extends State<PourOverScreen> {
                           ),
                         Positioned(
                           bottom: 12,
-                          left: 0,
-                          right: 0,
+                          left: 12,
+                          right: 12,
                           child: Text(
                             '${_waterPoured.toStringAsFixed(0)} ml',
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: AppColors.ivoryWhite,
                               fontSize: 22,
