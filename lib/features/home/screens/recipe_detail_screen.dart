@@ -1,15 +1,44 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/favorite_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/recipe_model.dart';
 
-class RecipeDetailScreen extends StatelessWidget {
-  const RecipeDetailScreen({
-    required this.recipe,
-    super.key,
-  });
+class RecipeDetailScreen extends StatefulWidget {
+  const RecipeDetailScreen({required this.recipe, super.key});
 
   final Recipe recipe;
+
+  @override
+  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  Recipe get recipe => widget.recipe;
+
+  @override
+  void initState() {
+    super.initState();
+    FavoriteService.instance.ensureLoaded();
+  }
+
+  Future<void> _toggleFavorite() async {
+    final nowFavorite = await FavoriteService.instance.toggle(recipe);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            nowFavorite
+                ? 'Ditambahkan ke Resep Favorit'
+                : 'Dihapus dari Resep Favorit',
+          ),
+        ),
+      );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +47,24 @@ class RecipeDetailScreen extends StatelessWidget {
         title: Text(recipe.title),
         backgroundColor: AppColors.ivoryWhite,
         foregroundColor: AppColors.darkCoffee,
+        actions: [
+          ValueListenableBuilder<List<Recipe>>(
+            valueListenable: FavoriteService.instance.favorites,
+            builder: (context, _, _) {
+              final isFavorite = FavoriteService.instance.isFavorite(recipe);
+              return IconButton(
+                onPressed: _toggleFavorite,
+                tooltip: isFavorite
+                    ? 'Hapus dari favorit'
+                    : 'Simpan ke favorit',
+                icon: Icon(
+                  isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                  color: AppColors.darkCoffee,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: AppColors.ivoryWhite,
       body: SingleChildScrollView(

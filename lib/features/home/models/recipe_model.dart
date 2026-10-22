@@ -22,6 +22,18 @@ class Recipe {
     );
   }
 
+  /// Kunci unik resep (dipakai untuk menandai resep favorit).
+  String get key => '$source|$title';
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'category': category,
+    'ingredients': ingredients,
+    'instructions': instructions,
+    'duration': duration,
+    'source': source,
+  };
+
   final String title;
   final String category;
   final String ingredients;
