@@ -48,13 +48,20 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _loadCurrentLocation() async {
     try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw Exception('Aktifkan layanan lokasi pada perangkat.');
+      }
       final permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         throw Exception('Izin lokasi diperlukan untuk menampilkan peta.');
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
       final location = LatLng(position.latitude, position.longitude);
 
       if (!mounted) {
@@ -82,21 +89,33 @@ class _MapScreenState extends State<MapScreen> {
       final response = await Supabase.instance.client
           .from('coffee_shops')
           .select();
-      print('Jumlah kedai didapat: ${response.length}'); // ignore: avoid_print
-      final shops = (response as List<dynamic>).map((item) {
-        final data = item as Map<String, dynamic>;
-        return CoffeeShop(
-          name: data['name']?.toString() ?? 'Kedai Tanpa Nama',
-          location: LatLng(
-            _parseDouble(data['latitude'], 'latitude'),
-            _parseDouble(data['longitude'], 'longitude'),
-          ),
-          address: data['address']?.toString() ?? 'Alamat tidak tersedia',
-          rating: _parseDouble(data['rating'], 'rating'),
-          description:
-              data['description']?.toString() ?? 'Deskripsi tidak tersedia',
-        );
-      }).toList();
+      debugPrint('Jumlah kedai didapat: ${response.length}');
+      final shops = <CoffeeShop>[];
+      for (final item in response as List<dynamic>) {
+        try {
+          final data = item as Map<String, dynamic>;
+          final latitude = _parseDouble(data['latitude'], 'latitude');
+          final longitude = _parseDouble(data['longitude'], 'longitude');
+          if (latitude < -90 ||
+              latitude > 90 ||
+              longitude < -180 ||
+              longitude > 180) {
+            continue;
+          }
+          shops.add(
+            CoffeeShop(
+              name: data['name']?.toString() ?? 'Kedai Tanpa Nama',
+              location: LatLng(latitude, longitude),
+              address: data['address']?.toString() ?? 'Alamat tidak tersedia',
+              rating: _parseDouble(data['rating'], 'rating'),
+              description:
+                  data['description']?.toString() ?? 'Deskripsi tidak tersedia',
+            ),
+          );
+        } on FormatException catch (error) {
+          debugPrint('Kedai dilewati karena data tidak valid: $error');
+        }
+      }
 
       if (!mounted) {
         return;
@@ -107,7 +126,7 @@ class _MapScreenState extends State<MapScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetch peta: $e'); // ignore: avoid_print
+      debugPrint('Error fetch peta: $e');
 
       if (!mounted) {
         return;
@@ -136,9 +155,7 @@ class _MapScreenState extends State<MapScreen> {
     return Card(
       margin: const EdgeInsets.all(8),
       elevation: 6,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 240,
         padding: const EdgeInsets.all(16),
@@ -166,11 +183,7 @@ class _MapScreenState extends State<MapScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(
-                  Icons.star,
-                  color: Colors.amber,
-                  size: 18,
-                ),
+                const Icon(Icons.star, color: Colors.amber, size: 18),
                 const SizedBox(width: 4),
                 Text(
                   shop.rating.toStringAsFixed(1),
@@ -203,9 +216,7 @@ class _MapScreenState extends State<MapScreen> {
       backgroundColor: AppColors.ivoryWhite,
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.mediumCoffee,
-              ),
+              child: CircularProgressIndicator(color: AppColors.mediumCoffee),
             )
           : _locationError != null || _currentLocation == null
           ? Center(
@@ -226,8 +237,9 @@ class _MapScreenState extends State<MapScreen> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${ApiConstants.cartoApiKey}',
+                  urlTemplate: ApiConstants.cartoApiKey.isEmpty
+                      ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+                      : 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${ApiConstants.cartoApiKey}',
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.example.app',
                 ),

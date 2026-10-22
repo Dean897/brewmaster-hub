@@ -68,6 +68,38 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _loginWithBiometrics() async {
+    if (_isLoading) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _authService.loginWithBiometrics();
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message = error is BiometricAuthException
+          ? error.message
+          : 'Login biometrik gagal. Silakan coba lagi.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,16 +215,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Icon(
-                    Icons.fingerprint,
-                    color: AppColors.mediumCoffee,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Login biometrik segera hadir',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.mediumCoffee),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _loginWithBiometrics,
+                    icon: const Icon(Icons.fingerprint, size: 28),
+                    label: const Text('Login dengan Biometrik'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.darkCoffee,
+                      side: const BorderSide(color: AppColors.mediumCoffee),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                   ),
                 ],
               ),

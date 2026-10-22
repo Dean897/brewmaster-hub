@@ -10,19 +10,27 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_dotenv: ^6.0.1
+  flutter_local_notifications: 22.3.2
   flutter_map: ^8.3.2
   flutter_map_marker_popup: ^8.1.2
   flutter_ringtone_player: ^4.0.0+4
+  flutter_secure_storage: ^11.2.0
+  flutter_timezone: 5.1.1
   geolocator: ^14.1.2
   google_generative_ai: ^0.4.7
+  http: 1.6.0
+  intl: 0.19.0
   latlong2: ^0.10.1
   local_auth: ^3.0.2
   path: ^1.9.1
   path_provider: ^2.1.6
   provider: ^6.1.5+1
   sensors_plus: ^7.1.1
+  shared_preferences: 2.5.5
   sqflite: ^2.4.4+2
   supabase_flutter: ^2.18.3
+  timezone: 0.11.0
+  webfeed_plus: 1.1.2
 
 dev_dependencies:
   flutter_test:
