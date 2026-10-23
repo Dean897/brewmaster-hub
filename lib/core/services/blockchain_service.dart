@@ -126,6 +126,15 @@ class Blockchain extends ChangeNotifier {
     await preferences.setString(_storageKey, encodedChain);
   }
 
+  Future<void> resetChain() async {
+    await _loadFuture;
+    _chain
+      ..clear()
+      ..add(_createGenesisBlock());
+    await saveChainToPrefs();
+    notifyListeners();
+  }
+
   Future<void> loadChainFromPrefs() async {
     final preferences = await SharedPreferences.getInstance();
     final encodedChain = preferences.getString(_storageKey);

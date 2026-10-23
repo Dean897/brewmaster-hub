@@ -9,6 +9,7 @@ import '../../home/models/recipe_model.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/favorite_recipe_screens.dart';
 import '../screens/loyalty_stamps_screen.dart';
+import '../screens/my_coupons_screen.dart';
 import 'profile_avatars.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -96,6 +97,12 @@ class _ProfileTabState extends State<ProfileTab> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const LoyaltyStampsScreen()),
     );
+  }
+
+  void _openMyCoupons() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const MyCouponsScreen()));
   }
 
   void _showAboutDialog() {
@@ -351,6 +358,19 @@ class _ProfileTabState extends State<ProfileTab> {
                               title: const Text('Resep Favorit Saya'),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: _openFavorites,
+                            ),
+                            const Divider(
+                              height: 1,
+                              color: AppColors.mediumCoffee,
+                            ),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.local_activity_outlined,
+                                color: AppColors.darkCoffee,
+                              ),
+                              title: const Text('Kupon Saya'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: _openMyCoupons,
                             ),
                             const Divider(
                               height: 1,

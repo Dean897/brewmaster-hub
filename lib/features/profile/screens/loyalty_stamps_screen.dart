@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/services/blockchain_service.dart';
+import '../../../core/services/coupon_service.dart';
 import '../../../core/theme/app_colors.dart';
+import 'my_coupons_screen.dart';
 import 'qr_scanner_screen.dart';
 
 class LoyaltyStampsScreen extends StatefulWidget {
@@ -13,6 +16,74 @@ class LoyaltyStampsScreen extends StatefulWidget {
 
 class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
   static const _maxStamps = 10;
+
+  String _merchantFromBlock(Block block) => block.data;
+
+  void _showStampDetails(Block block) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.ivoryWhite,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Detail Stempel',
+                style: TextStyle(
+                  color: AppColors.darkCoffee,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Nama Merchant: ${_merchantFromBlock(block)}'),
+              const SizedBox(height: 8),
+              Text(
+                'Waktu Scan: ${DateFormat('dd MMM yyyy HH:mm').format(block.timestamp.toLocal())}',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _redeemCoupon() async {
+    await CouponService.instance.addCoupon();
+    await Blockchain.instance.resetChain();
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Penukaran Berhasil'),
+        content: const Text(
+          '10 stempel telah ditukar menjadi kupon Gratis 1 Kopi Bebas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Tutup'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(this.context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MyCouponsScreen(),
+                ),
+              );
+            },
+            child: const Text('Lihat Kupon'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _scanStamp() async {
     final merchant = await Navigator.of(context).push<String>(
@@ -112,46 +183,67 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
                 ),
                 itemBuilder: (context, index) {
                   final isStamped = index < stampCount;
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: isStamped
-                          ? AppColors.lightCream
-                          : Colors.grey.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
+                  final block = isStamped ? blockchain.chain[index + 1] : null;
+                  return InkWell(
+                    onTap: block == null
+                        ? null
+                        : () => _showStampDetails(block),
+                    borderRadius: BorderRadius.circular(16),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
                         color: isStamped
-                            ? AppColors.mediumCoffee
-                            : Colors.grey.shade400,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isStamped
-                              ? Icons.local_cafe
-                              : Icons.local_cafe_outlined,
-                          size: 36,
-                          color: isStamped ? AppColors.darkCoffee : Colors.grey,
+                            ? AppColors.lightCream
+                            : Colors.grey.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isStamped
+                              ? AppColors.mediumCoffee
+                              : Colors.grey.shade400,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          isStamped
-                              ? 'Stempel ${index + 1}'
-                              : 'Slot ${index + 1}',
-                          style: TextStyle(
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isStamped
+                                ? Icons.local_cafe
+                                : Icons.local_cafe_outlined,
+                            size: 36,
                             color: isStamped
                                 ? AppColors.darkCoffee
-                                : Colors.grey[600],
-                            fontWeight: FontWeight.bold,
+                                : Colors.grey,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            isStamped
+                                ? 'Stempel ${index + 1}'
+                                : 'Slot ${index + 1}',
+                            style: TextStyle(
+                              color: isStamped
+                                  ? AppColors.darkCoffee
+                                  : Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
               const SizedBox(height: 24),
+              if (stampCount >= _maxStamps)
+                FilledButton.icon(
+                  onPressed: _redeemCoupon,
+                  icon: const Icon(Icons.card_giftcard),
+                  label: const Text('Tukar 10 Stempel Jadi Kupon!'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.mediumCoffee,
+                    foregroundColor: AppColors.ivoryWhite,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              if (stampCount >= _maxStamps) const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: stampCount >= _maxStamps ? null : _scanStamp,
                 icon: const Icon(Icons.qr_code_scanner),
