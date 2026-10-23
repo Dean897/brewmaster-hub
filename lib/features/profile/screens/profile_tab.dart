@@ -8,6 +8,7 @@ import '../../auth/screens/login_screen.dart';
 import '../../home/models/recipe_model.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/favorite_recipe_screens.dart';
+import '../screens/loyalty_stamps_screen.dart';
 import 'profile_avatars.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -88,6 +89,12 @@ class _ProfileTabState extends State<ProfileTab> {
   void _openFavorites() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const FavoriteRecipesScreen()),
+    );
+  }
+
+  void _openLoyaltyStamps() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const LoyaltyStampsScreen()),
     );
   }
 
@@ -344,6 +351,20 @@ class _ProfileTabState extends State<ProfileTab> {
                               title: const Text('Resep Favorit Saya'),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: _openFavorites,
+                            ),
+                            const Divider(
+                              height: 1,
+                              color: AppColors.mediumCoffee,
+                            ),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.card_giftcard,
+                                color: AppColors.darkCoffee,
+                              ),
+                              title: const Text('Loyalty Stamps'),
+                              subtitle: const Text('Kumpulkan 10 stempel kopi'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: _openLoyaltyStamps,
                             ),
                             const Divider(
                               height: 1,
