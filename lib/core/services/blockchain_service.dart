@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Block {
   Block({
@@ -24,6 +25,24 @@ class Block {
   final String data;
   final String previousHash;
   final String hash;
+
+  factory Block.fromJson(Map<String, dynamic> json) {
+    return Block(
+      index: json['index'] as int,
+      timestamp: DateTime.parse(json['timestamp'] as String).toUtc(),
+      data: json['data'] as String,
+      previousHash: json['previousHash'] as String,
+      hash: json['hash'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'index': index,
+    'timestamp': timestamp.toUtc().toIso8601String(),
+    'data': data,
+    'previousHash': previousHash,
+    'hash': hash,
+  };
 
   String calculateHash() {
     return _calculateBlockHash(
@@ -53,11 +72,14 @@ String _calculateBlockHash({
 class Blockchain extends ChangeNotifier {
   Blockchain._() {
     _chain.add(_createGenesisBlock());
+    _loadFuture = loadChainFromPrefs();
   }
 
   static final Blockchain instance = Blockchain._();
+  static const _storageKey = 'blockchain_stamps';
 
   final List<Block> _chain = [];
+  late final Future<void> _loadFuture;
 
   List<Block> get chain => List.unmodifiable(_chain);
 
@@ -72,7 +94,8 @@ class Blockchain extends ChangeNotifier {
     );
   }
 
-  void addBlock(String data) {
+  Future<void> addBlock(String data) async {
+    await _loadFuture;
     final normalizedData = data.trim();
     if (normalizedData.isEmpty) {
       throw ArgumentError.value(
@@ -92,6 +115,48 @@ class Blockchain extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    await saveChainToPrefs();
+  }
+
+  Future<void> saveChainToPrefs() async {
+    final preferences = await SharedPreferences.getInstance();
+    final encodedChain = jsonEncode(
+      _chain.map((block) => block.toJson()).toList(),
+    );
+    await preferences.setString(_storageKey, encodedChain);
+  }
+
+  Future<void> loadChainFromPrefs() async {
+    final preferences = await SharedPreferences.getInstance();
+    final encodedChain = preferences.getString(_storageKey);
+    if (encodedChain == null || encodedChain.isEmpty) {
+      return;
+    }
+
+    try {
+      final decodedChain = jsonDecode(encodedChain);
+      if (decodedChain is! List) {
+        return;
+      }
+
+      final loadedChain = decodedChain
+          .map((item) => Block.fromJson(item as Map<String, dynamic>))
+          .toList();
+      if (loadedChain.isEmpty ||
+          loadedChain.first.index != 0 ||
+          loadedChain.first.previousHash != '0') {
+        return;
+      }
+
+      _chain
+        ..clear()
+        ..addAll(loadedChain);
+      notifyListeners();
+    } on FormatException catch (error) {
+      debugPrint('Blockchain tidak dapat dimuat: $error');
+    } on TypeError catch (error) {
+      debugPrint('Format blockchain tidak valid: $error');
+    }
   }
 
   bool isChainValid() {
