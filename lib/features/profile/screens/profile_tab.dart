@@ -20,12 +20,14 @@ class ProfileTab extends StatefulWidget {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
+  /*
   static const List<String> _teamMembers = [
     'Deandra Naufal Maulana (124240186)',
     'Habrian Daffa Dwiyandana (124240126)',
     'Muhammad Titan Deannova (124240152)',
   ];
   static const String _appVersion = '0.1.0';
+  */
 
   static const List<String> _months = [
     'Jan',
@@ -105,34 +107,133 @@ class _ProfileTabState extends State<ProfileTab> {
     ).push(MaterialPageRoute<void>(builder: (_) => const MyCouponsScreen()));
   }
 
-  void _showAboutDialog() {
-    showAboutDialog(
-      context: context,
-      applicationName: 'BrewMaster Hub',
-      applicationVersion: 'v$_appVersion',
-      applicationIcon: const Icon(
-        Icons.coffee,
-        size: 40,
-        color: AppColors.darkCoffee,
-      ),
-      children: [
-        const SizedBox(height: 10),
-        const Text(
-          'BrewMaster Hub adalah aplikasi mobile komprehensif dirancang khusus untuk '
-          'para pecinta kopi dan home brewer. Aplikasi ini tidak hanya berfungsi'
-          'sebagai panduan menyeduh kopi, tetapi juga sebagai asisten pintar,'
-          'pencari kedai kopi terdekat berbasis lokasi (Located-Based Service),'
-          'dan platform hiburan interaktif (minigame)',
+  Future<void> _showFeedbackDialog() async {
+    final controller = TextEditingController();
+    var isSubmitting = false;
+
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text(
+              'Saran & Kesan Mata Kuliah Pemrograman Aplikasi Mobile',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: TextField(
+              controller: controller,
+              minLines: 3,
+              maxLines: 4,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: 'Tuliskan saran & kesan Anda di sini...',
+                filled: true,
+                fillColor: Colors.grey.shade200,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.mediumCoffee),
+                ),
+              ),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final feedback = controller.text.trim();
+                          if (feedback.isEmpty) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Silakan tuliskan saran terlebih dahulu.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final user =
+                              Supabase.instance.client.auth.currentUser;
+                          if (user == null) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Sesi login tidak ditemukan. Silakan login ulang.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            await Supabase.instance.client
+                                .from('course_feedbacks')
+                                .insert({
+                                  'feedback': feedback,
+                                  'user_id': user.id,
+                                });
+                          } catch (error) {
+                            debugPrint(
+                              'Course feedback submission failed: $error',
+                            );
+                            if (dialogContext.mounted) {
+                              setDialogState(() => isSubmitting = false);
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Gagal mengirim feedback: $error',
+                                  ),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop(true);
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.mediumCoffee,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Kirim Feedback'),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'Dikembangkan oleh:',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        for (final member in _teamMembers) Text('• $member'),
-      ],
-    );
+      );
+
+      if (submitted == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Terima kasih atas saran Anda!')),
+        );
+      }
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -397,7 +498,7 @@ class _ProfileTabState extends State<ProfileTab> {
                               ),
                               title: const Text('Tentang BrewMaster Hub'),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: _showAboutDialog,
+                              onTap: _showFeedbackDialog,
                             ),
                           ],
                         ),
