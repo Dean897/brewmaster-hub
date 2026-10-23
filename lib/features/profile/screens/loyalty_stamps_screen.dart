@@ -2,11 +2,42 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/blockchain_service.dart';
 import '../../../core/theme/app_colors.dart';
+import 'qr_scanner_screen.dart';
 
-class LoyaltyStampsScreen extends StatelessWidget {
+class LoyaltyStampsScreen extends StatefulWidget {
   const LoyaltyStampsScreen({super.key});
 
+  @override
+  State<LoyaltyStampsScreen> createState() => _LoyaltyStampsScreenState();
+}
+
+class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
   static const _maxStamps = 10;
+
+  Future<void> _scanStamp() async {
+    final merchant = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(builder: (_) => const QrScannerScreen()),
+    );
+    if (!mounted || merchant == null) {
+      return;
+    }
+
+    final blockchain = Blockchain.instance;
+    if (blockchain.stampCount >= _maxStamps) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kartu stempel sudah penuh.')),
+      );
+      return;
+    }
+
+    await blockchain.addBlock(merchant);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Stempel dari $merchant berhasil ditambahkan.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,16 +153,12 @@ class LoyaltyStampsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: stampCount >= _maxStamps
-                    ? null
-                    : () => Blockchain.instance.addBlock(
-                        'Stempel Kopi ${stampCount + 1}',
-                      ),
-                icon: const Icon(Icons.add_circle_outline),
+                onPressed: stampCount >= _maxStamps ? null : _scanStamp,
+                icon: const Icon(Icons.qr_code_scanner),
                 label: Text(
                   stampCount >= _maxStamps
                       ? 'Kartu Stempel Penuh'
-                      : 'Simulasikan Dapat Stempel',
+                      : 'Scan QR Stempel',
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.darkCoffee,
