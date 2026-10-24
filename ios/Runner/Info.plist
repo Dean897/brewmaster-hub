@@ -8,6 +8,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Gunakan Face ID untuk login ke BrewMaster Hub.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kamera digunakan untuk memindai QR Code stempel kopi.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Brewmaster Hub</string>
 	<key>CFBundleExecutable</key>
