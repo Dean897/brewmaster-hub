@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class CoffeeShop {
   const CoffeeShop({
@@ -208,11 +209,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kedai Sekitar'),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
-      ),
+      appBar: coffeeAppBar(title: 'Kedai Sekitar'),
       backgroundColor: AppColors.ivoryWhite,
       body: _isLoading
           ? const Center(

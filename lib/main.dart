@@ -18,7 +18,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: SupabaseConstants.supabaseUrl,
-    anonKey: SupabaseConstants.supabaseAnonKey,
+    publishableKey: SupabaseConstants.supabaseAnonKey,
   );
 
   runApp(const BrewMasterHubApp());
@@ -30,6 +30,7 @@ class BrewMasterHubApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'BrewMaster Hub',
       theme: AppTheme.theme,
       home: const SplashScreen(),

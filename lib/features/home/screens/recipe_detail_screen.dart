@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/favorite_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 import '../models/recipe_model.dart';
 
 class RecipeDetailScreen extends StatefulWidget {

@@ -4,6 +4,7 @@ import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import '../../../core/services/brew_timer_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({super.key});
@@ -94,15 +95,7 @@ class _TimerScreenState extends State<TimerScreen> {
   Widget build(BuildContext context) {
     final isRunning = _timerService.isRunning;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Timer Seduh'),
-        backgroundColor: AppColors.ivoryWhite,
-        foregroundColor: AppColors.darkCoffee,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      appBar: coffeeAppBar(title: 'Timer Seduh'),
       backgroundColor: AppColors.ivoryWhite,
       body: SafeArea(
         child: Padding(

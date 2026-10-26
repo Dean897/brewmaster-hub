@@ -15,11 +15,17 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    HomeTab(),
-    AiChatTab(),
-    NewsTab(),
-    ProfileTab(),
+  late final List<Widget> _pages = [
+    HomeTab(
+      onProfileTap: () {
+        setState(() {
+          _currentIndex = 3;
+        });
+      },
+    ),
+    const AiChatTab(),
+    const NewsTab(),
+    const ProfileTab(),
   ];
 
   @override
