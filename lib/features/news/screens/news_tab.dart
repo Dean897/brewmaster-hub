@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webfeed_plus/webfeed_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -18,17 +19,21 @@ class NewsTab extends StatefulWidget {
 
 class _NewsTabState extends State<NewsTab> {
   static const _ratesUrl =
-      'https://api.frankfurter.dev/v1/latest?base=USD&symbols=IDR,EUR,JPY,GBP';
+      'https://api.frankfurter.dev/v1/latest?base=USD&symbols=IDR,EUR,JPY,AUD,GBP';
   static const _feedUrl = 'https://dailycoffeenews.com/feed/';
 
   static const _basePrices = <String, double>{'Arabica': 5.40, 'Robusta': 2.80};
-
-  static const _currencies = <String, String>{
-    'USD': 'USD',
-    'IDR': 'IDR',
-    'EUR': 'EUR',
-    'JPY': 'JPY',
-  };
+  static const _currencyPairs = <(String, String)>[
+    ('USD', 'IDR'),
+    ('EUR', 'JPY'),
+    ('AUD', 'GBP'),
+  ];
+  static const _timeZones = <({String label, int offset})>[
+    (label: 'WIB', offset: 7),
+    (label: 'WITA', offset: 8),
+    (label: 'WIT', offset: 9),
+    (label: 'UTC', offset: 0),
+  ];
 
   static final _events = [
     CoffeeEvent(
@@ -53,6 +58,8 @@ class _NewsTabState extends State<NewsTab> {
     'IDR': 16800,
     'EUR': 0.86,
     'JPY': 159,
+    'AUD': 1.53,
+    'GBP': 0.79,
   };
 
   static const _webFallbackArticles = <NewsPreview>[
@@ -71,8 +78,10 @@ class _NewsTabState extends State<NewsTab> {
   Map<String, double> _rates = _webFallbackRates;
   List<RssItem> _articles = [];
   List<NewsPreview> _fallbackArticles = [];
-  String _selectedCurrency = 'IDR';
-  int _selectedUtcOffset = 7;
+  final _marketPageController = PageController();
+  final _eventsPageController = PageController(viewportFraction: 0.88);
+  final Map<String, int> _eventTimeZoneOffsets = {};
+  int _marketPage = 0;
   bool _isLoadingRates = true;
   bool _isLoadingNews = true;
   String? _ratesError;
@@ -83,6 +92,13 @@ class _NewsTabState extends State<NewsTab> {
     super.initState();
     _fetchRates();
     _fetchNews();
+  }
+
+  @override
+  void dispose() {
+    _marketPageController.dispose();
+    _eventsPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchRates() async {
@@ -100,14 +116,12 @@ class _NewsTabState extends State<NewsTab> {
       }
 
       final rates = <String, double>{'USD': 1};
-      for (final currency in _currencies.keys) {
-        if (currency == 'USD') {
-          continue;
-        }
+      for (final currency in {'IDR', 'EUR', 'JPY', 'AUD', 'GBP'}) {
         final value = rawRates[currency];
-        if (value is num) {
-          rates[currency] = value.toDouble();
+        if (value is! num) {
+          throw FormatException('Kurs $currency tidak tersedia');
         }
+        rates[currency] = value.toDouble();
       }
 
       if (!mounted) {
@@ -174,39 +188,100 @@ class _NewsTabState extends State<NewsTab> {
     throw const FormatException('Respons kurs bukan object JSON');
   }
 
-  double _priceFor(String product) {
+  double _priceFor(String product, String currency) {
     final basePrice = _basePrices[product] ?? 0;
-    return basePrice * (_rates[_selectedCurrency] ?? 1);
+    final rate = _rates[currency];
+    if (rate == null) {
+      throw StateError('Kurs $currency tidak tersedia.');
+    }
+    return basePrice * rate;
   }
 
-  String _formatPrice(double price) {
+  String _formatPrice(double price, String currency) {
     return NumberFormat.currency(
-      name: _selectedCurrency,
-      decimalDigits: _selectedCurrency == 'IDR' ? 0 : 2,
+      name: currency,
+      decimalDigits: currency == 'IDR' || currency == 'JPY' ? 0 : 2,
     ).format(price);
   }
 
-  DateTime _localEventDate(DateTime utcDate) {
-    return utcDate.add(Duration(hours: _selectedUtcOffset));
+  int _timeZoneOffset(CoffeeEvent event) {
+    return _eventTimeZoneOffsets[event.title] ?? 7;
+  }
+
+  String _timeZoneLabel(int offset) {
+    return _timeZones.firstWhere((zone) => zone.offset == offset).label;
+  }
+
+  DateTime _localEventDate(CoffeeEvent event) {
+    return event.utcDate.add(Duration(hours: _timeZoneOffset(event)));
+  }
+
+  Future<void> _selectEventTimeZone(CoffeeEvent event) async {
+    final selectedOffset = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.ivoryWhite,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Pilih zona waktu',
+                  style: TextStyle(
+                    color: AppColors.darkCoffee,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            for (final zone in _timeZones)
+              ListTile(
+                title: Text(zone.label),
+                subtitle: Text(
+                  'UTC${zone.offset == 0
+                      ? ''
+                      : zone.offset > 0
+                      ? '+'
+                      : ''}${zone.offset}',
+                ),
+                trailing: _timeZoneOffset(event) == zone.offset
+                    ? const Icon(Icons.check, color: AppColors.mediumCoffee)
+                    : null,
+                onTap: () => Navigator.of(context).pop(zone.offset),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (selectedOffset != null && mounted) {
+      setState(() {
+        _eventTimeZoneOffsets[event.title] = selectedOffset;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.ivoryWhite,
-      appBar: coffeeAppBar(title: 'Info Global'),
+      appBar: coffeeAppBar(title: 'The Daily Brew'),
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([_fetchRates(), _fetchNews()]);
         },
         color: AppColors.mediumCoffee,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
           children: [
-            _buildPriceCard(),
-            const SizedBox(height: 28),
+            _buildMarketSection(),
+            const SizedBox(height: 30),
             _buildEventsSection(),
-            const SizedBox(height: 28),
+            const SizedBox(height: 30),
             _buildNewsSection(),
           ],
         ),
@@ -214,114 +289,222 @@ class _NewsTabState extends State<NewsTab> {
     );
   }
 
-  Widget _buildPriceCard() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
-      decoration: BoxDecoration(
-        color: AppColors.darkCoffee,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.darkCoffee.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+  Widget _buildSectionHeading({
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Harga Biji Global',
-                  style: TextStyle(
-                    color: AppColors.ivoryWhite,
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              DropdownButton<String>(
-                value: _selectedCurrency,
-                dropdownColor: AppColors.darkCoffee,
-                underline: const SizedBox.shrink(),
-                iconEnabledColor: AppColors.ivoryWhite,
-                style: const TextStyle(color: AppColors.ivoryWhite),
-                items: _currencies.keys
-                    .map(
-                      (currency) => DropdownMenuItem(
-                        value: currency,
-                        child: Text(currency),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (currency) {
-                  if (currency != null) {
-                    setState(() => _selectedCurrency = currency);
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (_isLoadingRates)
-            const Center(
-              child: CircularProgressIndicator(color: AppColors.lightCream),
-            )
-          else if (_ratesError != null)
-            Text(
-              _ratesError!,
-              style: const TextStyle(color: AppColors.lightCream),
-            )
-          else
-            Row(
-              children: [
-                Expanded(child: _buildPriceTile('Arabica')),
-                const SizedBox(width: 14),
-                Expanded(child: _buildPriceTile('Robusta')),
-              ],
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.darkCoffee,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: AppColors.mediumCoffee.withValues(alpha: 0.85),
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPriceTile(String name) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.mediumCoffee.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$name (kg)',
-            style: const TextStyle(color: AppColors.ivoryWhite, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              _formatPrice(_priceFor(name)),
-              style: const TextStyle(
-                color: AppColors.ivoryWhite,
-                fontSize: 23,
-                fontWeight: FontWeight.bold,
+  Widget _buildMarketSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeading(
+          title: 'Market Pulse',
+          subtitle: 'Harga acuan biji kopi per kilogram',
+        ),
+        _buildPriceCard(),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _currencyPairs.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: _marketPage == index ? 22 : 7,
+              height: 7,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: _marketPage == index
+                    ? AppColors.darkCoffee
+                    : AppColors.mediumCoffee.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            name == 'Arabica' ? '▲ Base USD 5.40' : '▲ Base USD 2.80',
-            style: const TextStyle(color: Colors.lightGreenAccent),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceCard() {
+    return SizedBox(
+      height: 180,
+      child: PageView.builder(
+        controller: _marketPageController,
+        itemCount: _currencyPairs.length,
+        onPageChanged: (index) => setState(() => _marketPage = index),
+        itemBuilder: (context, index) {
+          final pair = _currencyPairs[index];
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+            decoration: BoxDecoration(
+              color: AppColors.darkCoffee,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.darkCoffee.withValues(alpha: 0.2),
+                  blurRadius: 14,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: _isLoadingRates
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.lightCream,
+                    ),
+                  )
+                : _ratesError != null
+                ? Center(
+                    child: Text(
+                      _ratesError!,
+                      style: const TextStyle(color: AppColors.lightCream),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.show_chart_rounded,
+                            color: AppColors.lightCream,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${pair.$1}  →  ${pair.$2}',
+                            style: const TextStyle(
+                              color: AppColors.lightCream,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${index + 1} / ${_currencyPairs.length}',
+                            style: TextStyle(
+                              color: AppColors.ivoryWhite.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Divider(
+                        height: 1,
+                        color: AppColors.ivoryWhite.withValues(alpha: 0.18),
+                      ),
+                      const SizedBox(height: 5),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildPriceRow('Arabica', pair.$1, pair.$2),
+                            _buildPriceRow('Robusta', pair.$1, pair.$2),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildPriceRow(
+    String product,
+    String firstCurrency,
+    String secondCurrency,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            product,
+            style: const TextStyle(
+              color: AppColors.ivoryWhite,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 2,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _formatPrice(
+                      _priceFor(product, firstCurrency),
+                      firstCurrency,
+                    ),
+                    style: const TextStyle(
+                      color: AppColors.ivoryWhite,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: AppColors.lightCream.withValues(alpha: 0.8),
+                ),
+              ),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _formatPrice(
+                      _priceFor(product, secondCurrency),
+                      secondCurrency,
+                    ),
+                    style: const TextStyle(
+                      color: AppColors.lightCream,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -329,107 +512,115 @@ class _NewsTabState extends State<NewsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Event & Webinar',
-                style: TextStyle(
-                  color: AppColors.darkCoffee,
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            DropdownButton<int>(
-              value: _selectedUtcOffset,
-              underline: const SizedBox.shrink(),
-              style: const TextStyle(color: AppColors.darkCoffee),
-              items: const [
-                DropdownMenuItem(value: 7, child: Text('WIB')),
-                DropdownMenuItem(value: 8, child: Text('WITA')),
-                DropdownMenuItem(value: 9, child: Text('WIT')),
-                DropdownMenuItem(value: 0, child: Text('UTC')),
-              ],
-              onChanged: (offset) {
-                if (offset != null) {
-                  setState(() => _selectedUtcOffset = offset);
-                }
-              },
-            ),
-          ],
+        _buildSectionHeading(
+          title: 'Upcoming Events',
+          subtitle: 'Pilih zona waktu langsung dari kartu acara',
         ),
-        const SizedBox(height: 12),
-        for (final event in _events) ...[
-          _buildEventTile(event),
-          const SizedBox(height: 12),
-        ],
+        SizedBox(
+          height: 190,
+          child: PageView.builder(
+            controller: _eventsPageController,
+            itemCount: _events.length,
+            itemBuilder: (context, index) => _buildEventTile(_events[index]),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildEventTile(CoffeeEvent event) {
-    final localDate = _localEventDate(event.utcDate);
+    final localDate = _localEventDate(event);
     return Card(
-      margin: EdgeInsets.zero,
-      elevation: 1,
-      color: Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      elevation: 2,
+      color: AppColors.ivoryWhite,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         side: BorderSide(color: AppColors.mediumCoffee.withValues(alpha: 0.25)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 70,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.lightCream,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    DateFormat('MMM').format(localDate).toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.darkCoffee,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightCream,
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  Text(
-                    '${localDate.day}',
-                    style: const TextStyle(
-                      color: AppColors.darkCoffee,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        DateFormat('MMM').format(localDate).toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.darkCoffee,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${localDate.day}',
+                        style: const TextStyle(
+                          color: AppColors.darkCoffee,
+                          fontSize: 23,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.darkCoffee,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        event.location,
+                        style: const TextStyle(
+                          color: AppColors.mediumCoffee,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: const TextStyle(
-                      color: AppColors.darkCoffee,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    '${DateFormat('dd MMM yyyy - HH:mm').format(localDate)} '
-                    '· ${event.location}',
-                    style: const TextStyle(color: AppColors.mediumCoffee),
-                  ),
-                ],
+            const Spacer(),
+            ActionChip(
+              avatar: const Icon(
+                Icons.schedule_rounded,
+                size: 17,
+                color: AppColors.darkCoffee,
               ),
+              label: Text(
+                '${DateFormat('dd MMM yyyy · HH:mm').format(localDate)} '
+                '${_timeZoneLabel(_timeZoneOffset(event))}',
+              ),
+              labelStyle: const TextStyle(
+                color: AppColors.darkCoffee,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+              backgroundColor: AppColors.lightCream,
+              side: BorderSide.none,
+              onPressed: () => _selectEventTimeZone(event),
             ),
           ],
         ),
@@ -441,15 +632,10 @@ class _NewsTabState extends State<NewsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Berita Terkini',
-          style: TextStyle(
-            color: AppColors.darkCoffee,
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-          ),
+        _buildSectionHeading(
+          title: 'Latest News',
+          subtitle: 'Cerita dan kabar terbaru dari dunia kopi',
         ),
-        const SizedBox(height: 12),
         if (_isLoadingNews)
           const Center(
             child: Padding(
@@ -476,52 +662,193 @@ class _NewsTabState extends State<NewsTab> {
   Widget _buildNewsTile(RssItem article) {
     final title = article.title?.trim();
     final description = _cleanDescription(article.description);
-    final date = article.pubDate == null
-        ? 'Tanggal tidak tersedia'
-        : DateFormat('dd MMM yyyy - HH:mm').format(article.pubDate!);
-
+    final source = article.source?.value?.trim();
+    final thumbnailUrl = _thumbnailUrl(article);
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
       color: Colors.white,
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 76,
-          height: 76,
-          decoration: BoxDecoration(
-            color: AppColors.mediumCoffee,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            Icons.coffee,
-            color: AppColors.lightCream,
-            size: 34,
-          ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: InkWell(
+        onTap: article.link == null ? null : () => _openArticle(article.link!),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 170,
+              child: _buildNewsImage(thumbnailUrl),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(17, 14, 17, 17),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.newspaper_rounded,
+                        size: 15,
+                        color: AppColors.mediumCoffee,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          source == null || source.isEmpty
+                              ? 'Daily Coffee News'
+                              : source,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.mediumCoffee,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (article.pubDate != null)
+                        Text(
+                          DateFormat('dd MMM yyyy').format(article.pubDate!),
+                          style: TextStyle(
+                            color: AppColors.mediumCoffee.withValues(
+                              alpha: 0.8,
+                            ),
+                            fontSize: 11,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    title == null || title.isEmpty
+                        ? 'Berita tanpa judul'
+                        : title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.darkCoffee,
+                      fontSize: 17,
+                      height: 1.3,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.mediumCoffee,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
-        title: Text(
-          title == null || title.isEmpty ? 'Berita tanpa judul' : title,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.darkCoffee,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 7),
-          child: Text(
-            '$date\n${description.isEmpty ? 'Baca berita selengkapnya di Daily Coffee News.' : description}',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.mediumCoffee),
-          ),
-        ),
-        onTap: article.link == null
-            ? null
-            : () => _showArticleLink(article.link!),
       ),
     );
+  }
+
+  Widget _buildNewsImage(String? imageUrl) {
+    if (imageUrl == null) {
+      return _newsImagePlaceholder();
+    }
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _newsImagePlaceholder(),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          return child;
+        }
+        return _newsImagePlaceholder();
+      },
+    );
+  }
+
+  Widget _newsImagePlaceholder() {
+    return ColoredBox(
+      color: AppColors.lightCream,
+      child: Center(
+        child: Icon(
+          Icons.coffee_rounded,
+          size: 52,
+          color: AppColors.mediumCoffee.withValues(alpha: 0.75),
+        ),
+      ),
+    );
+  }
+
+  String? _thumbnailUrl(RssItem article) {
+    final thumbnails = article.media?.thumbnails;
+    if (thumbnails != null && thumbnails.isNotEmpty) {
+      final url = thumbnails.first.url;
+      if (url != null && url.isNotEmpty) {
+        return url;
+      }
+    }
+
+    final mediaContents = article.media?.contents;
+    if (mediaContents != null) {
+      for (final content in mediaContents) {
+        if (content.url != null && content.type?.startsWith('image/') == true) {
+          return content.url;
+        }
+      }
+    }
+
+    final enclosure = article.enclosure;
+    final enclosureUrl = enclosure?.url;
+    final enclosureType = enclosure?.type;
+    if (enclosureUrl != null &&
+        (enclosureType == null || enclosureType.startsWith('image/'))) {
+      return enclosureUrl;
+    }
+
+    final html = article.description ?? article.content?.value;
+    if (html != null) {
+      final match = RegExp(
+        r'''<img[^>]+src=["']([^"']+)["']''',
+        caseSensitive: false,
+      ).firstMatch(html);
+      return match?.group(1);
+    }
+    return null;
+  }
+
+  Future<void> _openArticle(String link) async {
+    final uri = Uri.tryParse(link);
+    if (uri == null ||
+        (uri.scheme != 'https' && uri.scheme != 'http') ||
+        uri.host.isEmpty) {
+      _showOpenArticleError('Tautan berita tidak valid.');
+      return;
+    }
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        _showOpenArticleError('Tautan berita tidak dapat dibuka.');
+      }
+    } on Exception {
+      if (mounted) {
+        _showOpenArticleError('Tautan berita tidak dapat dibuka.');
+      }
+    }
+  }
+
+  void _showOpenArticleError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildFallbackNewsTile(NewsPreview article) {
@@ -580,22 +907,6 @@ class _NewsTabState extends State<NewsTab> {
         .replaceAll(RegExp(r'<[^>]*>'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-  }
-
-  void _showArticleLink(String link) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Buka Berita'),
-        content: Text(link),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
-    );
   }
 }
 
