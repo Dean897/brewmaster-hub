@@ -1,20 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/recommendation_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../minigames/screens/gacha_screen.dart';
 import '../../minigames/screens/pour_over_screen.dart';
 import '../../minigames/screens/tebak_kopi_screen.dart';
-import '../models/recipe_catalog.dart';
+import '../models/recipe_model.dart';
 import 'map_screen.dart';
 import 'recipe_book_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'timer_screen.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({required this.onProfileTap, super.key});
 
   final VoidCallback onProfileTap;
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  List<Recipe> _recommendations = const [];
+  bool _isLoadingRecs = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecommendations();
+  }
+
+  Future<void> _loadRecommendations() async {
+    try {
+      final recs =
+          await RecommendationService.instance.getSmartRecommendations();
+      if (!mounted) return;
+      setState(() {
+        _recommendations = recs;
+        _isLoadingRecs = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingRecs = false);
+    }
+  }
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -34,7 +64,7 @@ class HomeTab extends StatelessWidget {
     final user = Supabase.instance.client.auth.currentUser;
     final metadataName = user?.userMetadata?['full_name']?.toString().trim();
     if (metadataName != null && metadataName.isNotEmpty) {
-      return metadataName.split(RegExp(r'\s+')).first;
+      return metadataName.split(RegExp(r'\\s+')).first;
     }
     return 'Barista';
   }
@@ -45,9 +75,6 @@ class HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recommendedRecipe = builtInRecipes.firstWhere(
-      (recipe) => recipe.title == 'Caramel Macchiato',
-    );
     final menuItems = [
       (
         icon: Icons.timer_outlined,
@@ -84,6 +111,7 @@ class HomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ─── Header + Greeting ───
             Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               decoration: const BoxDecoration(
@@ -123,7 +151,7 @@ class HomeTab extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        onPressed: onProfileTap,
+                        onPressed: widget.onProfileTap,
                         tooltip: 'Buka profil',
                         icon: const CircleAvatar(
                           radius: 22,
@@ -137,86 +165,69 @@ class HomeTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.mediumCoffee,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.lightCream.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.lightCream.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'REKOMENDASI',
-                            style: TextStyle(
-                              color: AppColors.ivoryWhite,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          recommendedRecipe.title,
+                ],
+              ),
+            ),
+
+            // ─── Rekomendasi Cerdas (Content-Based Filtering) ───
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Rekomendasi Cerdas Untukmu 🤖',
                           style: TextStyle(
-                            color: AppColors.ivoryWhite,
+                            color: AppColors.darkCoffee,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${recommendedRecipe.category} • Resep pilihan dari Buku Resep',
-                          style: TextStyle(
-                            color: AppColors.ivoryWhite.withValues(alpha: 0.88),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        OutlinedButton.icon(
-                          onPressed: () => _open(
-                            context,
-                            RecipeDetailScreen(recipe: recommendedRecipe),
-                          ),
-                          icon: const Icon(Icons.menu_book_outlined, size: 16),
-                          label: const Text('Buka Resep'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.darkCoffee,
-                            backgroundColor: AppColors.ivoryWhite,
-                            side: BorderSide.none,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 180,
+                    child: _isLoadingRecs
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.mediumCoffee,
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                          )
+                        : _recommendations.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'Belum ada rekomendasi.',
+                                  style: TextStyle(
+                                    color: AppColors.mediumCoffee,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _recommendations.length,
+                                itemBuilder: (context, index) {
+                                  final recipe = _recommendations[index];
+                                  return _RecommendationCard(
+                                    recipe: recipe,
+                                    onTap: () => _open(
+                                      context,
+                                      RecipeDetailScreen(recipe: recipe),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
             ),
+
+            // ─── Jelajahi Fitur ───
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               child: Column(
@@ -280,6 +291,114 @@ class HomeTab extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────── Recommendation Card ─────────────────────────
+
+class _RecommendationCard extends StatelessWidget {
+  const _RecommendationCard({required this.recipe, required this.onTap});
+
+  final Recipe recipe;
+  final VoidCallback onTap;
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'Manual Brew':
+        return Icons.coffee_outlined;
+      case 'Espresso Based':
+        return Icons.local_cafe_outlined;
+      case 'Cold Brew':
+        return Icons.ac_unit_outlined;
+      case 'Mocktail / Coffee Soda':
+        return Icons.local_bar_outlined;
+      default:
+        return Icons.coffee;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 2,
+        shadowColor: AppColors.darkCoffee.withValues(alpha: 0.10),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: AppColors.lightCream),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightCream,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _categoryIcon(recipe.category),
+                    color: AppColors.mediumCoffee,
+                    size: 22,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  recipe.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.darkCoffee,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  recipe.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.mediumCoffee,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.timer_outlined,
+                      size: 12,
+                      color: AppColors.mediumCoffee,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${recipe.duration} menit',
+                      style: const TextStyle(
+                        color: AppColors.mediumCoffee,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────── Menu Card (unchanged) ───────────────────────
 
 class _MenuCard extends StatelessWidget {
   const _MenuCard({
