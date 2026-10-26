@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/recommendation_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/page_scrubber.dart';
 import '../../../core/widgets/recipe_image.dart';
 import '../../minigames/screens/gacha_screen.dart';
 import '../../minigames/screens/pour_over_screen.dart';
@@ -25,11 +26,19 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   List<Recipe> _recommendations = const [];
   bool _isLoadingRecs = true;
+  final _recommendationPageController = PageController(viewportFraction: 0.78);
+  int _recommendationPage = 0;
 
   @override
   void initState() {
     super.initState();
     _loadRecommendations();
+  }
+
+  @override
+  void dispose() {
+    _recommendationPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecommendations() async {
@@ -170,25 +179,19 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
 
-            // ─── Rekomendasi Cerdas (Content-Based Filtering) ───
+            // ─── Rekomendasi Untukmu ───
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Rekomendasi Cerdas Untukmu 🤖',
-                          style: TextStyle(
-                            color: AppColors.darkCoffee,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Rekomendasi Untukmu',
+                    style: TextStyle(
+                      color: AppColors.darkCoffee,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -209,9 +212,11 @@ class _HomeTabState extends State<HomeTab> {
                               ),
                             ),
                           )
-                        : ListView.builder(
-                            scrollDirection: Axis.horizontal,
+                        : PageView.builder(
+                            controller: _recommendationPageController,
                             itemCount: _recommendations.length,
+                            onPageChanged: (index) =>
+                                setState(() => _recommendationPage = index),
                             itemBuilder: (context, index) {
                               final recipe = _recommendations[index];
                               return _RecommendationCard(
@@ -224,6 +229,15 @@ class _HomeTabState extends State<HomeTab> {
                             },
                           ),
                   ),
+                  if (!_isLoadingRecs && _recommendations.length > 1)
+                    PageScrubber(
+                      count: _recommendations.length,
+                      currentPage: _recommendationPage,
+                      color: AppColors.ivoryWhite,
+                      inactiveColor: AppColors.lightCream,
+                      onPageSelected: (index) =>
+                          _recommendationPageController.jumpToPage(index),
+                    ),
                 ],
               ),
             ),
@@ -304,16 +318,17 @@ class _RecommendationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       child: Card(
         margin: EdgeInsets.zero,
         elevation: 2,
         shadowColor: AppColors.darkCoffee.withValues(alpha: 0.10),
-        color: Colors.white,
+        color: AppColors.darkCoffee,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.lightCream),
+          side: BorderSide(
+            color: AppColors.mediumCoffee.withValues(alpha: 0.65),
+          ),
         ),
         child: InkWell(
           onTap: onTap,
@@ -336,7 +351,7 @@ class _RecommendationCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.darkCoffee,
+                    color: AppColors.ivoryWhite,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -347,7 +362,7 @@ class _RecommendationCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.mediumCoffee,
+                    color: AppColors.lightCream,
                     fontSize: 10,
                   ),
                 ),
@@ -357,13 +372,13 @@ class _RecommendationCard extends StatelessWidget {
                     const Icon(
                       Icons.timer_outlined,
                       size: 12,
-                      color: AppColors.mediumCoffee,
+                      color: AppColors.lightCream,
                     ),
                     const SizedBox(width: 3),
                     Text(
                       '${recipe.duration} menit',
                       style: const TextStyle(
-                        color: AppColors.mediumCoffee,
+                        color: AppColors.lightCream,
                         fontSize: 10,
                       ),
                     ),

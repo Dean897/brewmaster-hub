@@ -9,6 +9,7 @@ import 'package:webfeed_plus/webfeed_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coffee_app_bar.dart';
+import '../../../core/widgets/page_scrubber.dart';
 
 class NewsTab extends StatefulWidget {
   const NewsTab({super.key});
@@ -82,6 +83,7 @@ class _NewsTabState extends State<NewsTab> {
   final _eventsPageController = PageController(viewportFraction: 0.88);
   final Map<String, int> _eventTimeZoneOffsets = {};
   int _marketPage = 0;
+  int _eventsPage = 0;
   bool _isLoadingRates = true;
   bool _isLoadingNews = true;
   String? _ratesError;
@@ -329,23 +331,14 @@ class _NewsTabState extends State<NewsTab> {
         ),
         _buildPriceCard(),
         const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _currencyPairs.length,
-            (index) => AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: _marketPage == index ? 22 : 7,
-              height: 7,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: _marketPage == index
-                    ? AppColors.darkCoffee
-                    : AppColors.mediumCoffee.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
+        PageScrubber(
+          count: _currencyPairs.length,
+          currentPage: _marketPage,
+          color: AppColors.darkCoffee,
+          inactiveColor: AppColors.mediumCoffee,
+          onPageSelected: (index) {
+            _marketPageController.jumpToPage(index);
+          },
         ),
       ],
     );
@@ -521,8 +514,19 @@ class _NewsTabState extends State<NewsTab> {
           child: PageView.builder(
             controller: _eventsPageController,
             itemCount: _events.length,
+            onPageChanged: (index) => setState(() => _eventsPage = index),
             itemBuilder: (context, index) => _buildEventTile(_events[index]),
           ),
+        ),
+        const SizedBox(height: 8),
+        PageScrubber(
+          count: _events.length,
+          currentPage: _eventsPage,
+          color: AppColors.darkCoffee,
+          inactiveColor: AppColors.mediumCoffee,
+          onPageSelected: (index) {
+            _eventsPageController.jumpToPage(index);
+          },
         ),
       ],
     );
