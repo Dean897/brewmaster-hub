@@ -107,133 +107,29 @@ class _ProfileTabState extends State<ProfileTab> {
     ).push(MaterialPageRoute<void>(builder: (_) => const MyCouponsScreen()));
   }
 
-  Future<void> _showFeedbackDialog() async {
-    final controller = TextEditingController();
-    var isSubmitting = false;
-
-    try {
-      final submitted = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text(
-              'Saran & Kesan Mata Kuliah Pemrograman Aplikasi Mobile',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: TextField(
-              controller: controller,
-              minLines: 3,
-              maxLines: 4,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: 'Tuliskan saran & kesan Anda di sini...',
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.mediumCoffee),
-                ),
-              ),
-            ),
-            actions: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          final feedback = controller.text.trim();
-                          if (feedback.isEmpty) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Silakan tuliskan saran terlebih dahulu.',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          final user =
-                              Supabase.instance.client.auth.currentUser;
-                          if (user == null) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Sesi login tidak ditemukan. Silakan login ulang.',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          setDialogState(() => isSubmitting = true);
-                          try {
-                            await Supabase.instance.client
-                                .from('course_feedbacks')
-                                .insert({
-                                  'feedback': feedback,
-                                  'user_id': user.id,
-                                });
-                          } catch (error) {
-                            debugPrint(
-                              'Course feedback submission failed: $error',
-                            );
-                            if (dialogContext.mounted) {
-                              setDialogState(() => isSubmitting = false);
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Gagal mengirim feedback: $error',
-                                  ),
-                                ),
-                              );
-                            }
-                            return;
-                          }
-
-                          if (dialogContext.mounted) {
-                            Navigator.of(dialogContext).pop(true);
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.mediumCoffee,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Kirim Feedback'),
-                ),
-              ),
-            ],
-          ),
+  Future<void> _showCourseImpressionDialog() {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          'Kesan & Pesan Mata Kuliah',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-      );
-
-      if (submitted == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Terima kasih atas saran Anda!')),
-        );
-      }
-    } finally {
-      controller.dispose();
-    }
+        content: const Text(
+          'Mengikuti mata kuliah Pemrograman Aplikasi Mobile memberikan '
+          'pengalaman belajar yang menarik dan bermanfaat. Saya belajar '
+          'membangun aplikasi menggunakan Flutter, menyusun antarmuka, dan '
+          'menghubungkan fitur dengan layanan pendukung. Terima kasih atas '
+          'materi serta pengalaman belajar yang telah diberikan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleLogout() async {
@@ -493,12 +389,12 @@ class _ProfileTabState extends State<ProfileTab> {
                             ),
                             ListTile(
                               leading: const Icon(
-                                Icons.info_outline,
+                                Icons.menu_book,
                                 color: AppColors.darkCoffee,
                               ),
-                              title: const Text('Tentang BrewMaster Hub'),
+                              title: const Text('Kesan & Pesan Matkul PAM'),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: _showFeedbackDialog,
+                              onTap: _showCourseImpressionDialog,
                             ),
                           ],
                         ),
