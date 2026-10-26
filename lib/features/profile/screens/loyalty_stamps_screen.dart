@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -16,6 +18,23 @@ class LoyaltyStampsScreen extends StatefulWidget {
 
 class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
   static const _maxStamps = 10;
+  Timer? _cooldownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
 
   String _merchantFromBlock(Block block) => block.data;
 
@@ -86,6 +105,12 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
   }
 
   Future<void> _scanStamp() async {
+    final blockchain = Blockchain.instance;
+    if (blockchain.isScanOnCooldown) {
+      _showCooldownMessage(blockchain.cooldownRemaining);
+      return;
+    }
+
     final merchant = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(builder: (_) => const QrScannerScreen()),
     );
@@ -93,7 +118,6 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
       return;
     }
 
-    final blockchain = Blockchain.instance;
     if (blockchain.stampCount >= _maxStamps) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Kartu stempel sudah penuh.')),
@@ -101,12 +125,32 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
       return;
     }
 
-    await blockchain.addBlock(merchant);
+    try {
+      await blockchain.addBlock(merchant);
+    } on StateError catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
     if (!mounted) {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Stempel dari $merchant berhasil ditambahkan.')),
+    );
+  }
+
+  void _showCooldownMessage(Duration remaining) {
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds.remainder(60);
+    final formatted = minutes > 0
+        ? '$minutes menit ${seconds.toString().padLeft(2, '0')} detik'
+        : '$seconds detik';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Scan QR berikutnya tersedia dalam $formatted.')),
     );
   }
 
@@ -125,6 +169,7 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
           final blockchain = Blockchain.instance;
           final isValid = blockchain.isChainValid();
           final stampCount = blockchain.stampCount.clamp(0, _maxStamps);
+          final isScanOnCooldown = blockchain.isScanOnCooldown;
 
           return ListView(
             padding: const EdgeInsets.all(24),
@@ -245,11 +290,15 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
                 ),
               if (stampCount >= _maxStamps) const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: stampCount >= _maxStamps ? null : _scanStamp,
+                onPressed: stampCount >= _maxStamps || isScanOnCooldown
+                    ? null
+                    : _scanStamp,
                 icon: const Icon(Icons.qr_code_scanner),
                 label: Text(
                   stampCount >= _maxStamps
                       ? 'Kartu Stempel Penuh'
+                      : isScanOnCooldown
+                      ? 'Tunggu ${blockchain.cooldownRemaining.inMinutes}:${blockchain.cooldownRemaining.inSeconds.remainder(60).toString().padLeft(2, '0')}'
                       : 'Scan QR Stempel',
                 ),
                 style: FilledButton.styleFrom(
@@ -259,6 +308,13 @@ class _LoyaltyStampsScreenState extends State<LoyaltyStampsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (isScanOnCooldown)
+                Text(
+                  'Untuk mencegah spam, satu QR hanya dapat dipindai setiap 20 menit.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.orange[800]),
+                ),
+              if (isScanOnCooldown) const SizedBox(height: 8),
               const Text(
                 'Setiap stempel disimpan sebagai blok yang terhubung dengan hash blok sebelumnya.',
                 textAlign: TextAlign.center,

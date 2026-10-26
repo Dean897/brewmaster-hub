@@ -77,13 +77,30 @@ class Blockchain extends ChangeNotifier {
 
   static final Blockchain instance = Blockchain._();
   static const _storageKey = 'blockchain_stamps';
+  static const _lastStampAtStorageKey = 'loyalty_last_stamp_at';
+  static const stampCooldown = Duration(minutes: 20);
 
   final List<Block> _chain = [];
   late final Future<void> _loadFuture;
+  DateTime? _lastStampAt;
 
   List<Block> get chain => List.unmodifiable(_chain);
 
   int get stampCount => _chain.length - 1;
+
+  DateTime? get lastStampAt => _lastStampAt;
+
+  Duration get cooldownRemaining {
+    final lastStampAt = _lastStampAt;
+    if (lastStampAt == null) {
+      return Duration.zero;
+    }
+
+    final remaining = stampCooldown - DateTime.now().difference(lastStampAt);
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  bool get isScanOnCooldown => cooldownRemaining > Duration.zero;
 
   Block _createGenesisBlock() {
     return Block(
@@ -96,6 +113,13 @@ class Blockchain extends ChangeNotifier {
 
   Future<void> addBlock(String data) async {
     await _loadFuture;
+    if (isScanOnCooldown) {
+      throw StateError(
+        'Scan berikutnya dapat dilakukan dalam '
+        '${_formatDuration(cooldownRemaining)}.',
+      );
+    }
+
     final normalizedData = data.trim();
     if (normalizedData.isEmpty) {
       throw ArgumentError.value(
@@ -106,16 +130,19 @@ class Blockchain extends ChangeNotifier {
     }
 
     final previousBlock = _chain.last;
+    final now = DateTime.now();
     _chain.add(
       Block(
         index: _chain.length,
-        timestamp: DateTime.now().toUtc(),
+        timestamp: now.toUtc(),
         data: normalizedData,
         previousHash: previousBlock.hash,
       ),
     );
+    _lastStampAt = now;
     notifyListeners();
     await saveChainToPrefs();
+    await _saveLastStampAt();
   }
 
   Future<void> saveChainToPrefs() async {
@@ -131,12 +158,19 @@ class Blockchain extends ChangeNotifier {
     _chain
       ..clear()
       ..add(_createGenesisBlock());
+    _lastStampAt = null;
     await saveChainToPrefs();
+    await _saveLastStampAt();
     notifyListeners();
   }
 
   Future<void> loadChainFromPrefs() async {
     final preferences = await SharedPreferences.getInstance();
+    final savedLastStampAt = preferences.getString(_lastStampAtStorageKey);
+    if (savedLastStampAt != null && savedLastStampAt.isNotEmpty) {
+      _lastStampAt = DateTime.tryParse(savedLastStampAt)?.toLocal();
+    }
+
     final encodedChain = preferences.getString(_storageKey);
     if (encodedChain == null || encodedChain.isEmpty) {
       return;
@@ -166,6 +200,28 @@ class Blockchain extends ChangeNotifier {
     } on TypeError catch (error) {
       debugPrint('Format blockchain tidak valid: $error');
     }
+  }
+
+  Future<void> _saveLastStampAt() async {
+    final preferences = await SharedPreferences.getInstance();
+    final lastStampAt = _lastStampAt;
+    if (lastStampAt == null) {
+      await preferences.remove(_lastStampAtStorageKey);
+      return;
+    }
+    await preferences.setString(
+      _lastStampAtStorageKey,
+      lastStampAt.toUtc().toIso8601String(),
+    );
+  }
+
+  static String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    if (minutes > 0) {
+      return '$minutes menit ${seconds.toString().padLeft(2, '0')} detik';
+    }
+    return '$seconds detik';
   }
 
   bool isChainValid() {

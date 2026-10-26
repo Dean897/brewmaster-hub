@@ -27,5 +27,5 @@ class Coupon {
     'expiryDate': expiryDate.toUtc().toIso8601String(),
   };
 
-  bool get isExpired => expiryDate.isBefore(DateTime.now());
+  bool get isExpired => !expiryDate.isAfter(DateTime.now());
 }

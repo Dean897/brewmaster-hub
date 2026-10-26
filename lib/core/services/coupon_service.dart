@@ -20,6 +20,7 @@ class CouponService extends ChangeNotifier {
 
   Future<void> addCoupon() async {
     await _loadFuture;
+    await _removeExpiredCoupons();
     final coupon = Coupon(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       title: 'Gratis 1 Kopi Bebas',
@@ -36,6 +37,14 @@ class CouponService extends ChangeNotifier {
     _coupons.removeWhere((coupon) => coupon.id == id);
     await saveCoupons();
     notifyListeners();
+  }
+
+  Future<void> purgeExpiredCoupons() async {
+    await _loadFuture;
+    final removed = await _removeExpiredCoupons();
+    if (removed) {
+      notifyListeners();
+    }
   }
 
   Future<void> loadCoupons() async {
@@ -55,6 +64,7 @@ class CouponService extends ChangeNotifier {
         ..addAll(
           decoded.map((item) => Coupon.fromJson(item as Map<String, dynamic>)),
         );
+      await _removeExpiredCoupons();
       notifyListeners();
     } on FormatException catch (error) {
       debugPrint('Kupon tidak dapat dimuat: $error');
@@ -69,5 +79,19 @@ class CouponService extends ChangeNotifier {
       _storageKey,
       jsonEncode(_coupons.map((coupon) => coupon.toJson()).toList()),
     );
+  }
+
+  Future<bool> _removeExpiredCoupons() async {
+    final activeCoupons = _coupons
+        .where((coupon) => !coupon.isExpired)
+        .toList();
+    if (activeCoupons.length != _coupons.length) {
+      _coupons
+        ..clear()
+        ..addAll(activeCoupons);
+      await saveCoupons();
+      return true;
+    }
+    return false;
   }
 }

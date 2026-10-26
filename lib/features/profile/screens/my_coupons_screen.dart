@@ -1,11 +1,35 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/services/coupon_service.dart';
 import '../../../core/theme/app_colors.dart';
 
-class MyCouponsScreen extends StatelessWidget {
+class MyCouponsScreen extends StatefulWidget {
   const MyCouponsScreen({super.key});
+
+  @override
+  State<MyCouponsScreen> createState() => _MyCouponsScreenState();
+}
+
+class _MyCouponsScreenState extends State<MyCouponsScreen> {
+  Timer? _expiryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    CouponService.instance.purgeExpiredCoupons();
+    _expiryTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      CouponService.instance.purgeExpiredCoupons();
+    });
+  }
+
+  @override
+  void dispose() {
+    _expiryTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
