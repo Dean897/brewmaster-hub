@@ -167,6 +167,7 @@ Bubuk cokelat untuk taburan (opsional)''',
 6. Untuk versi dingin, ganti steamed milk dengan susu dingin dan tambahkan es batu.''',
     duration: 5,
     source: 'Resep Utama',
+    imageUrl: 'assets/images/recipes/cafe_mocha.jpg',
   ),
   Recipe(
     title: 'Affogato',
