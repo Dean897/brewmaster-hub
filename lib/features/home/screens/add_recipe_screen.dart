@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -18,6 +22,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _stepsController = TextEditingController();
   final _durationController = TextEditingController();
   final _supabase = Supabase.instance.client;
+  final _picker = ImagePicker();
 
   static const _categories = [
     'Espresso Based',
@@ -27,6 +32,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   ];
   String _category = _categories.first;
   bool _isSaving = false;
+  File? _selectedImage;
 
   @override
   void dispose() {
@@ -36,6 +42,79 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _durationController.dispose();
     super.dispose();
   }
+
+  // ─── Image Picker ──────────────────────────────────────────────────
+
+  Future<void> _pickImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.camera_alt_outlined,
+                  color: AppColors.darkCoffee,
+                ),
+                title: const Text('Ambil Foto'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_outlined,
+                  color: AppColors.darkCoffee,
+                ),
+                title: const Text('Pilih dari Galeri'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
+
+    if (picked != null) {
+      setState(() => _selectedImage = File(picked.path));
+    }
+  }
+
+  // ─── Upload Image to Supabase Storage ─────────────────────────────
+
+  /// Mengunggah gambar ke bucket `recipe_images` dan mengembalikan URL publik.
+  Future<String?> _uploadImage(String userId) async {
+    if (_selectedImage == null) return null;
+
+    final ext = p.extension(_selectedImage!.path).replaceAll('.', '');
+    final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final storagePath = 'recipes/$fileName';
+
+    await _supabase.storage
+        .from('recipe_images')
+        .upload(storagePath, _selectedImage!);
+
+    final publicUrl = _supabase.storage
+        .from('recipe_images')
+        .getPublicUrl(storagePath);
+
+    return publicUrl;
+  }
+
+  // ─── Save Recipe ──────────────────────────────────────────────────
 
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
@@ -53,6 +132,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     });
 
     try {
+      // Upload gambar jika ada.
+      final imageUrl = await _uploadImage(user.id);
+
       await _supabase.from('recipes').insert({
         'author_id': user.id,
         'title': _titleController.text.trim(),
@@ -60,6 +142,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         'ingredients': _ingredientsController.text.trim(),
         'instructions': _stepsController.text.trim(),
         'duration': int.parse(_durationController.text.trim()),
+        'image_url': imageUrl,
       });
 
       if (!mounted) {
@@ -98,6 +181,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     );
   }
 
+  // ─── Build ────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,6 +193,81 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            // ─── Image Picker Area ───
+            GestureDetector(
+              onTap: _isSaving ? null : _pickImage,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.lightCream,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.mediumCoffee.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  image: _selectedImage != null
+                      ? DecorationImage(
+                          image: FileImage(_selectedImage!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _selectedImage == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 40,
+                            color: AppColors.mediumCoffee,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tambahkan Foto Resep',
+                            style: TextStyle(
+                              color: AppColors.mediumCoffee,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ketuk untuk memilih gambar',
+                            style: TextStyle(
+                              color: AppColors.mediumCoffee.withValues(
+                                alpha: 0.6,
+                              ),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Align(
+                        alignment: Alignment.topRight,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              padding: EdgeInsets.zero,
+                              onPressed: () =>
+                                  setState(() => _selectedImage = null),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ─── Form Fields ───
             TextFormField(
               controller: _titleController,
               decoration: _inputDecoration('Judul Resep'),
@@ -174,13 +334,25 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.ivoryWhite,
-                      ),
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.ivoryWhite,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _selectedImage != null
+                              ? 'Mengunggah & menyimpan...'
+                              : 'Menyimpan...',
+                        ),
+                      ],
                     )
                   : const Text('Simpan'),
             ),

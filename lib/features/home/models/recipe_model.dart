@@ -6,6 +6,7 @@ class Recipe {
     required this.instructions,
     required this.duration,
     required this.source,
+    this.imageUrl,
   });
 
   factory Recipe.fromJson(
@@ -19,6 +20,7 @@ class Recipe {
       instructions: json['instructions']?.toString() ?? '',
       duration: _parseDuration(json['duration']),
       source: source,
+      imageUrl: json['image_url']?.toString(),
     );
   }
 
@@ -32,6 +34,7 @@ class Recipe {
     'instructions': instructions,
     'duration': duration,
     'source': source,
+    'image_url': imageUrl,
   };
 
   final String title;
@@ -40,6 +43,7 @@ class Recipe {
   final String instructions;
   final int duration;
   final String source;
+  final String? imageUrl;
 
   static int _parseDuration(Object? value) {
     if (value is int) {

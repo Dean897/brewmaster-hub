@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/recommendation_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/recipe_image.dart';
 import '../../minigames/screens/gacha_screen.dart';
 import '../../minigames/screens/pour_over_screen.dart';
 import '../../minigames/screens/tebak_kopi_screen.dart';
@@ -33,8 +34,8 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<void> _loadRecommendations() async {
     try {
-      final recs =
-          await RecommendationService.instance.getSmartRecommendations();
+      final recs = await RecommendationService.instance
+          .getSmartRecommendations();
       if (!mounted) return;
       setState(() {
         _recommendations = recs;
@@ -199,29 +200,29 @@ class _HomeTabState extends State<HomeTab> {
                             ),
                           )
                         : _recommendations.isEmpty
-                            ? Center(
-                                child: Text(
-                                  'Belum ada rekomendasi.',
-                                  style: TextStyle(
-                                    color: AppColors.mediumCoffee,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _recommendations.length,
-                                itemBuilder: (context, index) {
-                                  final recipe = _recommendations[index];
-                                  return _RecommendationCard(
-                                    recipe: recipe,
-                                    onTap: () => _open(
-                                      context,
-                                      RecipeDetailScreen(recipe: recipe),
-                                    ),
-                                  );
-                                },
+                        ? Center(
+                            child: Text(
+                              'Belum ada rekomendasi.',
+                              style: TextStyle(
+                                color: AppColors.mediumCoffee,
+                                fontSize: 13,
                               ),
+                            ),
+                          )
+                        : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _recommendations.length,
+                            itemBuilder: (context, index) {
+                              final recipe = _recommendations[index];
+                              return _RecommendationCard(
+                                recipe: recipe,
+                                onTap: () => _open(
+                                  context,
+                                  RecipeDetailScreen(recipe: recipe),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -300,21 +301,6 @@ class _RecommendationCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback onTap;
 
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case 'Manual Brew':
-        return Icons.coffee_outlined;
-      case 'Espresso Based':
-        return Icons.local_cafe_outlined;
-      case 'Cold Brew':
-        return Icons.ac_unit_outlined;
-      case 'Mocktail / Coffee Soda':
-        return Icons.local_bar_outlined;
-      default:
-        return Icons.coffee;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -337,18 +323,12 @@ class _RecommendationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.lightCream,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _categoryIcon(recipe.category),
-                    color: AppColors.mediumCoffee,
-                    size: 22,
-                  ),
+                RecipeImage(
+                  imageUrl: recipe.imageUrl,
+                  width: double.infinity,
+                  height: 64,
+                  borderRadius: 12,
+                  iconSize: 28,
                 ),
                 const Spacer(),
                 Text(

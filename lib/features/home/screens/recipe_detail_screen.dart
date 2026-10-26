@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/favorite_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/coffee_app_bar.dart';
+import '../../../core/widgets/recipe_image.dart';
 import '../models/recipe_model.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -73,18 +73,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 220,
+            // ─── Hero Image with Fallback ───
+            RecipeImage(
+              imageUrl: recipe.imageUrl,
               width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.mediumCoffee,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.coffee,
-                color: AppColors.lightCream,
-                size: 72,
-              ),
+              height: 220,
+              borderRadius: 20,
+              iconSize: 72,
             ),
             const SizedBox(height: 24),
             const Text(

@@ -44,4 +44,5 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/images/login_landscape.png
+    - assets/images/
+    - assets/images/recipes/

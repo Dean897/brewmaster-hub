@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coffee_app_bar.dart';
+import '../../../core/widgets/recipe_image.dart';
 import '../models/recipe_catalog.dart';
 import '../models/recipe_model.dart';
 import 'add_recipe_screen.dart';
@@ -221,10 +222,12 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          leading: const CircleAvatar(
-                            backgroundColor: AppColors.mediumCoffee,
-                            foregroundColor: AppColors.lightCream,
-                            child: Icon(Icons.coffee),
+                          leading: RecipeImage(
+                            imageUrl: recipe.imageUrl,
+                            width: 64,
+                            height: 64,
+                            borderRadius: 12,
+                            iconSize: 28,
                           ),
                           title: Text(
                             recipeName,
