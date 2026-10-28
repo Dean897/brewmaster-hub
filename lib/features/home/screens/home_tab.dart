@@ -111,8 +111,8 @@ class _HomeTabState extends State<HomeTab> {
       ),
       (
         icon: Icons.help_outline,
-        title: 'Tebak Kopi',
-        subtitle: 'Uji lidahmu',
+        title: 'Kuis Kopi',
+        subtitle: 'Uji pengetahuan kopimu',
         screen: const TebakKopiScreen(),
         iconBackground: AppColors.ivoryWhite,
       ),

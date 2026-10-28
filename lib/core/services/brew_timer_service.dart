@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'brew_points_service.dart';
 import 'notification_service.dart';
 
 class BrewTimerService extends ChangeNotifier {
@@ -134,11 +135,7 @@ class BrewTimerService extends ChangeNotifier {
     _isRunning = false;
     _endTime = null;
     _completionCount++;
-    try {
-      final preferences = _preferences ?? await SharedPreferences.getInstance();
-      final current = preferences.getInt('total_brews_completed_count') ?? 0;
-      await preferences.setInt('total_brews_completed_count', current + 1);
-    } catch (_) {}
+    await BrewPointsService.instance.addTimerBrewPoint();
     await _clearRunningState();
     notifyListeners();
   }

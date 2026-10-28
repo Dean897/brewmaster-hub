@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/database/db_helper.dart';
+import '../../../core/services/brew_points_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coffee_app_bar.dart';
 
@@ -61,6 +62,7 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
   int _currentIndex = 0;
   int _remainingSeconds = _questionDuration;
   int _totalScore = 0;
+  int _correctCount = 0;
   bool _isLoading = true;
   bool _isAnswering = false;
   String? _loadingError;
@@ -103,6 +105,7 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
         _sessionQuestions = questions;
         _currentIndex = 0;
         _totalScore = 0;
+        _correctCount = 0;
         _isAnswering = false;
         _selectedAnswer = null;
         _isLoading = false;
@@ -149,6 +152,7 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
     final question = _sessionQuestions[_currentIndex];
     _selectedAnswer = answer;
     if (answer == question.correctAnswer) {
+      _correctCount++;
       _totalScore += _remainingSeconds * 10;
     } else if (answer != null) {
       unawaited(HapticFeedback.heavyImpact());
@@ -173,6 +177,13 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
   }
 
   Future<void> _showHighScore() async {
+    final bool earnedPoint = _correctCount >= 8;
+    if (earnedPoint) {
+      await BrewPointsService.instance.addQuizPoint();
+    }
+
+    if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -238,6 +249,48 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Jawaban Benar: $_correctCount / ${_sessionQuestions.length}',
+              style: const TextStyle(
+                color: AppColors.mediumCoffee,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (earnedPoint) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.lightCream,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.mediumCoffee, width: 0.5),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.military_tech_rounded,
+                      color: AppColors.darkCoffee,
+                      size: 20,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '+1 Poin Level Seduh Diperoleh!',
+                      style: TextStyle(
+                        color: AppColors.darkCoffee,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -277,7 +330,7 @@ class _TebakKopiScreenState extends State<TebakKopiScreen>
   }
 
   AppBar _buildAppBar() {
-    return coffeeAppBar(title: 'Tebak Kopi Arcade');
+    return coffeeAppBar(title: 'Kuis Kopi');
   }
 
   @override

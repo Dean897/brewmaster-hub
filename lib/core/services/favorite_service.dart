@@ -21,8 +21,13 @@ class FavoriteService {
 
   String? _loadedForUser;
 
-  String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+  String get _userId {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+    } catch (_) {
+      return 'guest';
+    }
+  }
 
   String get _storageKey => 'favorite_recipes_$_userId';
 

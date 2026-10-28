@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/services/brew_points_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coffee_app_bar.dart';
 
@@ -96,15 +96,30 @@ class _PourOverScreenState extends State<PourOverScreen> {
         );
   }
 
-  void _startPouring() {
-    if (!_isGameRunning || _isPouring) {
+  Timer? _initialHoldTimer;
+
+  void _onPourTapDown() {
+    if (!_isGameRunning) {
       return;
     }
 
+    // Setiap kali tombol di-tap / diklik cepat, langsung tambah 1 ml secara presisi
     setState(() {
+      _waterPoured = min(_maxGlassVolume, _waterPoured + 1.0);
       _isPouring = true;
     });
 
+    // Jika ditahan lebih dari 200ms, lanjutkan aliran tuang secara kontinu
+    _initialHoldTimer?.cancel();
+    _initialHoldTimer = Timer(const Duration(milliseconds: 200), () {
+      if (_isGameRunning && _isPouring) {
+        _startContinuousPouring();
+      }
+    });
+  }
+
+  void _startContinuousPouring() {
+    _pouringTimer?.cancel();
     _pouringTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!_isGameRunning) {
         _stopPouring();
@@ -112,12 +127,14 @@ class _PourOverScreenState extends State<PourOverScreen> {
       }
 
       setState(() {
-        _waterPoured += _pourRate;
+        _waterPoured = min(_maxGlassVolume, _waterPoured + _pourRate);
       });
     });
   }
 
   void _stopPouring() {
+    _initialHoldTimer?.cancel();
+    _initialHoldTimer = null;
     _pouringTimer?.cancel();
     _pouringTimer = null;
 
@@ -151,11 +168,7 @@ class _PourOverScreenState extends State<PourOverScreen> {
     final isSuccessful = difference <= 10;
 
     if (isSuccessful) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final current = prefs.getInt('total_pourover_success_count') ?? 0;
-        await prefs.setInt('total_pourover_success_count', current + 1);
-      } catch (_) {}
+      await BrewPointsService.instance.addPourOverPoint();
     }
 
     if (!mounted) return;
@@ -164,12 +177,57 @@ class _PourOverScreenState extends State<PourOverScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
+        final titleText = isSuccessful
+            ? (difference == 0 ? 'Sempurna! 🎉' : 'Berhasil! 🎉')
+            : 'Belum Berhasil';
         return AlertDialog(
-          title: Text(isSuccessful ? 'Berhasil!' : 'Gagal!'),
-          content: Text(
-            'Target: $target ml\n'
-            'Tuangan: ${_waterPoured.toStringAsFixed(0)} ml\n'
-            'Selisih: ${difference.toStringAsFixed(0)} ml',
+          title: Text(titleText),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Target: $target ml\n'
+                'Tuangan: ${_waterPoured.toStringAsFixed(0)} ml\n'
+                'Selisih: ${difference.toStringAsFixed(0)} ml',
+                textAlign: TextAlign.center,
+              ),
+              if (isSuccessful) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightCream,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.mediumCoffee,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.military_tech_rounded,
+                        color: AppColors.darkCoffee,
+                        size: 20,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '+1 Poin Level Seduh Diperoleh!',
+                        style: TextStyle(
+                          color: AppColors.darkCoffee,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
           actions: [
             FilledButton(
@@ -189,6 +247,7 @@ class _PourOverScreenState extends State<PourOverScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _initialHoldTimer?.cancel();
     _pouringTimer?.cancel();
     _gyroscopeSubscription?.cancel();
     super.dispose();
@@ -316,17 +375,18 @@ class _PourOverScreenState extends State<PourOverScreen> {
               if (_isGameRunning)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: FilledButton(
+                  child: FilledButton.icon(
                     onPressed: _finishGame,
+                    icon: const Icon(Icons.check_circle_outline, size: 20),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.darkCoffee,
                       foregroundColor: AppColors.ivoryWhite,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
+                        horizontal: 26,
                         vertical: 14,
                       ),
                     ),
-                    child: const Text('Berhenti Tuang'),
+                    label: const Text('Selesai & Cek Hasil'),
                   ),
                 )
               else
@@ -347,27 +407,47 @@ class _PourOverScreenState extends State<PourOverScreen> {
                 ),
               if (_isGameRunning)
                 GestureDetector(
-                  onTapDown: (_) => _startPouring(),
+                  onTapDown: (_) => _onPourTapDown(),
                   onTapUp: (_) => _stopPouring(),
                   onTapCancel: _stopPouring,
                   child: Container(
-                    width: 150,
-                    height: 100,
+                    width: 170,
+                    height: 95,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
                       color: _isPouring
                           ? AppColors.darkCoffee
                           : AppColors.mediumCoffee,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.darkCoffee.withValues(alpha: 0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Center(
-                      child: Text(
-                        _isPouring ? 'Tuang...' : 'Tekan untuk Tuang',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.ivoryWhite,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _isPouring
+                                ? Icons.water_drop
+                                : Icons.touch_app_outlined,
+                            color: AppColors.ivoryWhite,
+                            size: 26,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isPouring ? 'Menuang...' : 'Tap (+1 ml) / Tahan',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.ivoryWhite,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -20,21 +20,30 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkSession() async {
-    final session = Supabase.instance.client.auth.currentSession;
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
 
-    await Future<void>.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
 
-    if (!mounted) {
-      return;
+      if (!mounted) {
+        return;
+      }
+
+      final destination = session == null
+          ? const LoginScreen()
+          : const MainScreen();
+
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute<void>(builder: (_) => destination));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      );
     }
-
-    final destination = session == null
-        ? const LoginScreen()
-        : const MainScreen();
-
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute<void>(builder: (_) => destination));
   }
 
   @override

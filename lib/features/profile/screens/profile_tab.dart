@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/brew_points_service.dart';
 import '../../../core/services/favorite_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/coffee_app_bar.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../home/models/recipe_model.dart';
 import '../screens/edit_profile_screen.dart';
@@ -45,26 +46,11 @@ class _ProfileTabState extends State<ProfileTab> {
     'Des',
   ];
 
-  int _extraBrewPoints = 0;
-
   @override
   void initState() {
     super.initState();
     FavoriteService.instance.ensureLoaded();
-    _loadExtraPoints();
-  }
-
-  Future<void> _loadExtraPoints() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final brews = prefs.getInt('total_brews_completed_count') ?? 0;
-      final pourover = prefs.getInt('total_pourover_success_count') ?? 0;
-      if (mounted) {
-        setState(() {
-          _extraBrewPoints = brews + pourover;
-        });
-      }
-    } catch (_) {}
+    BrewPointsService.instance.ensureLoaded();
   }
 
   /// Level & badge ditentukan dari jumlah resep favorit dan aktivitas seduh.
@@ -267,91 +253,94 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.lightCream,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      rank.level,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkCoffee,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Badge: ${rank.badge}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.mediumCoffee,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: rank.progress.clamp(0.0, 1.0),
-                        minHeight: 8,
-                        backgroundColor: AppColors.ivoryWhite,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppColors.darkCoffee,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightCream,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        rank.level,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkCoffee,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      rank.points >= 10
-                          ? '${rank.points} Poin (Level Tertinggi!)'
-                          : '${rank.points} / ${rank.nextTarget} Poin ke ${rank.nextLevel}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.darkCoffee,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Badge: ${rank.badge}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.mediumCoffee,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: rank.progress.clamp(0.0, 1.0),
+                          minHeight: 8,
+                          backgroundColor: AppColors.ivoryWhite,
+                          valueColor: const AlwaysStoppedAnimation(
+                            AppColors.darkCoffee,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        rank.points >= 10
+                            ? '${rank.points} Poin (Level Tertinggi!)'
+                            : '${rank.points} / ${rank.nextTarget} Poin ke ${rank.nextLevel}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkCoffee,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Cara Menaikkan Level Seduh:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppColors.darkCoffee,
+                const SizedBox(height: 14),
+                const Text(
+                  'Cara Menaikkan Level Seduh:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppColors.darkCoffee,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                '• Simpan resep ke Favorit (+1 Poin)\n'
-                '• Selesai seduh di Timer Seduh (+1 Poin)\n'
-                '• Berhasil Pour-Over Challenge (+1 Poin)',
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: AppColors.mediumCoffee,
+                const SizedBox(height: 6),
+                const Text(
+                  '• Simpan resep ke Favorit (+1 Poin)\n'
+                  '• Selesai seduh di Timer Seduh (+1 Poin)\n'
+                  '• Berhasil Pour-Over Challenge (+1 Poin)\n'
+                  '• Kuis Kopi min. 8 benar (+1 Poin)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: AppColors.mediumCoffee,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Jenjang Level:\n'
-                '1. Barista Novice (0-2 poin)\n'
-                '2. Home Brewer (3-5 poin)\n'
-                '3. Skilled Barista (6-9 poin)\n'
-                '4. Master Brewer (10+ poin)',
-                style: TextStyle(fontSize: 11, color: AppColors.mediumCoffee),
-              ),
-            ],
+                const SizedBox(height: 10),
+                const Text(
+                  'Jenjang Level:\n'
+                  '1. Barista Novice (0-2 poin)\n'
+                  '2. Home Brewer (3-5 poin)\n'
+                  '3. Skilled Barista (6-9 poin)\n'
+                  '4. Master Brewer (10+ poin)',
+                  style: TextStyle(fontSize: 11, color: AppColors.mediumCoffee),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -389,6 +378,7 @@ class _ProfileTabState extends State<ProfileTab> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   value,
@@ -405,6 +395,8 @@ class _ProfileTabState extends State<ProfileTab> {
                 Text(
                   label,
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.mediumCoffee,
@@ -429,30 +421,27 @@ class _ProfileTabState extends State<ProfileTab> {
         : rawName;
     final avatarUrl = metadata?['avatar_url'] as String?;
 
-    return SafeArea(
-      child: ValueListenableBuilder<List<Recipe>>(
-        valueListenable: FavoriteService.instance.favorites,
-        builder: (context, favorites, _) {
-          final totalPoints = favorites.length + _extraBrewPoints;
-          final rank = _rankFor(totalPoints);
+    return Scaffold(
+      backgroundColor: AppColors.ivoryWhite,
+      appBar: coffeeAppBar(title: 'Profil & Akun'),
+      body: SafeArea(
+        child: ValueListenableBuilder<List<Recipe>>(
+          valueListenable: FavoriteService.instance.favorites,
+          builder: (context, favorites, _) {
+            return ValueListenableBuilder<int>(
+              valueListenable: BrewPointsService.instance.extraPointsNotifier,
+              builder: (context, extraPoints, _) {
+                final totalPoints = favorites.length + extraPoints;
+                final rank = _rankFor(totalPoints);
 
-          return Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Profil & Akun',
-                        style: TextStyle(
-                          color: AppColors.darkCoffee,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+            return Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
 
                       // A. HEADER PROFIL PENGGUNA
                       Center(
@@ -636,7 +625,10 @@ class _ProfileTabState extends State<ProfileTab> {
             ],
           );
         },
-      ),
-    );
-  }
+      );
+    },
+  ),
+),
+);
+}
 }
