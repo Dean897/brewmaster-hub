@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/auth_service.dart';
@@ -44,24 +45,75 @@ class _ProfileTabState extends State<ProfileTab> {
     'Des',
   ];
 
+  int _extraBrewPoints = 0;
+
   @override
   void initState() {
     super.initState();
     FavoriteService.instance.ensureLoaded();
+    _loadExtraPoints();
   }
 
-  /// Level & badge ditentukan dari jumlah resep favorit.
-  ({String level, String badge}) _rankFor(int savedCount) {
-    if (savedCount >= 10) {
-      return (level: 'Master Brewer', badge: 'Master Brewer');
+  Future<void> _loadExtraPoints() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final brews = prefs.getInt('total_brews_completed_count') ?? 0;
+      final pourover = prefs.getInt('total_pourover_success_count') ?? 0;
+      if (mounted) {
+        setState(() {
+          _extraBrewPoints = brews + pourover;
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Level & badge ditentukan dari jumlah resep favorit dan aktivitas seduh.
+  ({
+    String level,
+    String badge,
+    int points,
+    int nextTarget,
+    String nextLevel,
+    double progress,
+  }) _rankFor(int points) {
+    if (points >= 10) {
+      return (
+        level: 'Master Brewer',
+        badge: 'Master Brewer',
+        points: points,
+        nextTarget: 10,
+        nextLevel: 'Maksimal',
+        progress: 1.0,
+      );
     }
-    if (savedCount >= 6) {
-      return (level: 'Skilled Barista', badge: 'Coffee Connoisseur');
+    if (points >= 6) {
+      return (
+        level: 'Skilled Barista',
+        badge: 'Coffee Connoisseur',
+        points: points,
+        nextTarget: 10,
+        nextLevel: 'Master Brewer',
+        progress: (points - 6) / 4.0,
+      );
     }
-    if (savedCount >= 3) {
-      return (level: 'Home Brewer', badge: 'Coffee Lover');
+    if (points >= 3) {
+      return (
+        level: 'Home Brewer',
+        badge: 'Coffee Lover',
+        points: points,
+        nextTarget: 6,
+        nextLevel: 'Skilled Barista',
+        progress: (points - 3) / 3.0,
+      );
     }
-    return (level: 'Barista Novice', badge: 'Coffee Enthusiast');
+    return (
+      level: 'Barista Novice',
+      badge: 'Coffee Enthusiast',
+      points: points,
+      nextTarget: 3,
+      nextLevel: 'Home Brewer',
+      progress: points / 3.0,
+    );
   }
 
   String _memberSince(User? user) {
@@ -177,7 +229,152 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _statCard({required String value, required String label}) {
+  void _showLevelInfoDialog(
+    ({
+      String level,
+      String badge,
+      int points,
+      int nextTarget,
+      String nextLevel,
+      double progress,
+    }) rank,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: AppColors.ivoryWhite,
+          title: const Row(
+            children: [
+              Icon(
+                Icons.military_tech_rounded,
+                color: AppColors.darkCoffee,
+                size: 28,
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tingkat Level Seduh',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCoffee,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.lightCream,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      rank.level,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkCoffee,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Badge: ${rank.badge}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mediumCoffee,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: rank.progress.clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: AppColors.ivoryWhite,
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppColors.darkCoffee,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      rank.points >= 10
+                          ? '${rank.points} Poin (Level Tertinggi!)'
+                          : '${rank.points} / ${rank.nextTarget} Poin ke ${rank.nextLevel}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkCoffee,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Cara Menaikkan Level Seduh:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: AppColors.darkCoffee,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '• Simpan resep ke Favorit (+1 Poin)\n'
+                '• Selesai seduh di Timer Seduh (+1 Poin)\n'
+                '• Berhasil Pour-Over Challenge (+1 Poin)',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.mediumCoffee,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Jenjang Level:\n'
+                '1. Barista Novice (0-2 poin)\n'
+                '2. Home Brewer (3-5 poin)\n'
+                '3. Skilled Barista (6-9 poin)\n'
+                '4. Master Brewer (10+ poin)',
+                style: TextStyle(fontSize: 11, color: AppColors.mediumCoffee),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Tutup',
+                style: TextStyle(
+                  color: AppColors.darkCoffee,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _statCard({
+    required String value,
+    required String label,
+    VoidCallback? onTap,
+  }) {
     return Expanded(
       child: Card(
         elevation: 0,
@@ -186,29 +383,35 @@ class _ProfileTabState extends State<ProfileTab> {
           borderRadius: BorderRadius.circular(12),
           side: const BorderSide(color: AppColors.mediumCoffee, width: 0.5),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          child: Column(
-            children: [
-              Text(
-                value,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkCoffee,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkCoffee,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.mediumCoffee,
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.mediumCoffee,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -230,7 +433,8 @@ class _ProfileTabState extends State<ProfileTab> {
       child: ValueListenableBuilder<List<Recipe>>(
         valueListenable: FavoriteService.instance.favorites,
         builder: (context, favorites, _) {
-          final rank = _rankFor(favorites.length);
+          final totalPoints = favorites.length + _extraBrewPoints;
+          final rank = _rankFor(totalPoints);
 
           return Column(
             children: [
@@ -308,9 +512,14 @@ class _ProfileTabState extends State<ProfileTab> {
                           _statCard(
                             value: '${favorites.length}',
                             label: 'Resep Tersimpan',
+                            onTap: _openFavorites,
                           ),
                           const SizedBox(width: 12),
-                          _statCard(value: rank.level, label: 'Level Seduh'),
+                          _statCard(
+                            value: rank.level,
+                            label: 'Level Seduh',
+                            onTap: () => _showLevelInfoDialog(rank),
+                          ),
                           const SizedBox(width: 12),
                           _statCard(
                             value: _memberSince(user),

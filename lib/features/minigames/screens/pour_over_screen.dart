@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/coffee_app_bar.dart';
@@ -148,6 +149,16 @@ class _PourOverScreenState extends State<PourOverScreen> {
     final target = _targetVolume ?? 0;
     final difference = (_waterPoured - target).abs();
     final isSuccessful = difference <= 10;
+
+    if (isSuccessful) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final current = prefs.getInt('total_pourover_success_count') ?? 0;
+        await prefs.setInt('total_pourover_success_count', current + 1);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
 
     await showDialog<void>(
       context: context,

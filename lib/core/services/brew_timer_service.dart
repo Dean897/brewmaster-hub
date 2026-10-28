@@ -134,6 +134,11 @@ class BrewTimerService extends ChangeNotifier {
     _isRunning = false;
     _endTime = null;
     _completionCount++;
+    try {
+      final preferences = _preferences ?? await SharedPreferences.getInstance();
+      final current = preferences.getInt('total_brews_completed_count') ?? 0;
+      await preferences.setInt('total_brews_completed_count', current + 1);
+    } catch (_) {}
     await _clearRunningState();
     notifyListeners();
   }
