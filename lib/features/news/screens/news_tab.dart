@@ -34,7 +34,7 @@ class _NewsTabState extends State<NewsTab> {
     (label: 'WIB', offset: 7),
     (label: 'WITA', offset: 8),
     (label: 'WIT', offset: 9),
-    (label: 'UTC', offset: 0),
+    (label: 'London (UTC)', offset: 0),
   ];
 
   static final _events = [

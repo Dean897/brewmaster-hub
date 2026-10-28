@@ -251,53 +251,89 @@ class _AiChatTabState extends State<AiChatTab> {
 
     setState(() {
       _messages.add({'role': 'user', 'text': message});
+      _messages.add({'role': 'model', 'text': ''});
       _isLoading = true;
     });
     await _saveActiveSession();
     _scrollToBottom();
 
-    try {
-      final model = GenerativeModel(
-        model: 'gemini-3.8-flash',
-        apiKey: ApiConstants.geminiApiKey,
-      );
-      final response = await model.generateContent([Content.text(message)]);
-      final responseText = response.text?.trim();
+    final modelCandidates = [
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite',
+      'gemini-3.5-flash',
+    ];
 
-      if (!mounted) {
-        return;
+    String accumulatedText = '';
+    bool success = false;
+
+    for (final modelName in modelCandidates) {
+      try {
+        final model = GenerativeModel(
+          model: modelName,
+          apiKey: ApiConstants.geminiApiKey,
+        );
+
+        // Siapkan riwayat percakapan sebelumnya (maksimal 6 pesan terakhir)
+        final history = <Content>[];
+        if (_messages.length > 2) {
+          final previousMessages = _messages.sublist(0, _messages.length - 2);
+          final recentMessages = previousMessages.length > 6
+              ? previousMessages.sublist(previousMessages.length - 6)
+              : previousMessages;
+
+          for (final m in recentMessages) {
+            final role = m['role'];
+            final msgText = m['text'] ?? '';
+            if (msgText.trim().isEmpty) continue;
+            if (role == 'user') {
+              history.add(Content.text(msgText));
+            } else if (role == 'model') {
+              history.add(Content.model([TextPart(msgText)]));
+            }
+          }
+        }
+
+        final chat = model.startChat(history: history);
+        final stream = chat.sendMessageStream(Content.text(message));
+
+        await for (final chunk in stream) {
+          final chunkText = chunk.text;
+          if (chunkText != null && chunkText.isNotEmpty) {
+            accumulatedText += chunkText;
+            if (mounted) {
+              setState(() {
+                _messages.last['text'] = accumulatedText;
+              });
+              _scrollToBottom();
+            }
+          }
+        }
+
+        if (accumulatedText.trim().isNotEmpty) {
+          success = true;
+          break;
+        }
+      } catch (error, stackTrace) {
+        debugPrint('Gemini ($modelName) failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        if (accumulatedText.trim().isNotEmpty) {
+          success = true;
+          break;
+        }
       }
+    }
 
+    if (!success && mounted) {
       setState(() {
-        _messages.add({
-          'role': 'model',
-          'text': responseText == null || responseText.isEmpty
-              ? 'Maaf, saya tidak menerima respons dari AI.'
-              : responseText,
-        });
+        _messages.last['text'] =
+            'Maaf, Asisten AI sedang istirahat atau koneksi sedang sibuk. Coba lagi sebentar!';
       });
-      await _saveActiveSession();
-      _scrollToBottom();
-    } catch (error, stackTrace) {
-      debugPrint('Gemini request failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    }
 
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _messages.add({
-          'role': 'model',
-          'text': 'Maaf, Asisten AI sedang istirahat. Coba lagi nanti!',
-        });
-      });
-      await _saveActiveSession();
-      _scrollToBottom();
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    await _saveActiveSession();
+    _scrollToBottom();
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -395,14 +431,37 @@ class _AiChatTabState extends State<AiChatTab> {
                                 : AppColors.lightCream,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Text(
-                            message['text'] ?? '',
-                            style: TextStyle(
-                              color: isUser
-                                  ? AppColors.ivoryWhite
-                                  : AppColors.darkCoffee,
-                            ),
-                          ),
+                          child: (!isUser && (message['text'] ?? '').isEmpty)
+                              ? const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.darkCoffee,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Sedang meracik jawaban...',
+                                      style: TextStyle(
+                                        color: AppColors.mediumCoffee,
+                                        fontSize: 13,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  message['text'] ?? '',
+                                  style: TextStyle(
+                                    color: isUser
+                                        ? AppColors.ivoryWhite
+                                        : AppColors.darkCoffee,
+                                  ),
+                                ),
                         ),
                       );
                     },
