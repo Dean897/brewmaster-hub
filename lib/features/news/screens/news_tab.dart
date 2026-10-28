@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -281,9 +282,9 @@ class _NewsTabState extends State<NewsTab> {
           padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
           children: [
             _buildMarketSection(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 18),
             _buildEventsSection(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 18),
             _buildNewsSection(),
           ],
         ),
@@ -296,7 +297,7 @@ class _NewsTabState extends State<NewsTab> {
     required String subtitle,
   }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -330,14 +331,19 @@ class _NewsTabState extends State<NewsTab> {
           subtitle: 'Harga acuan biji kopi per kilogram',
         ),
         _buildPriceCard(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 6),
         PageScrubber(
           count: _currencyPairs.length,
           currentPage: _marketPage,
           color: AppColors.darkCoffee,
           inactiveColor: AppColors.mediumCoffee,
           onPageSelected: (index) {
-            _marketPageController.jumpToPage(index);
+            setState(() => _marketPage = index);
+            _marketPageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+            );
           },
         ),
       ],
@@ -347,14 +353,24 @@ class _NewsTabState extends State<NewsTab> {
   Widget _buildPriceCard() {
     return SizedBox(
       height: 180,
-      child: PageView.builder(
-        controller: _marketPageController,
-        itemCount: _currencyPairs.length,
-        onPageChanged: (index) => setState(() => _marketPage = index),
-        itemBuilder: (context, index) {
-          final pair = _currencyPairs[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+        ),
+        child: PageView.builder(
+          controller: _marketPageController,
+          physics: const BouncingScrollPhysics(),
+          itemCount: _currencyPairs.length,
+          onPageChanged: (index) => setState(() => _marketPage = index),
+          itemBuilder: (context, index) {
+            final pair = _currencyPairs[index];
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
             decoration: BoxDecoration(
               color: AppColors.darkCoffee,
@@ -431,8 +447,9 @@ class _NewsTabState extends State<NewsTab> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPriceRow(
     String product,
@@ -511,21 +528,37 @@ class _NewsTabState extends State<NewsTab> {
         ),
         SizedBox(
           height: 190,
-          child: PageView.builder(
-            controller: _eventsPageController,
-            itemCount: _events.length,
-            onPageChanged: (index) => setState(() => _eventsPage = index),
-            itemBuilder: (context, index) => _buildEventTile(_events[index]),
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              },
+            ),
+            child: PageView.builder(
+              controller: _eventsPageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _events.length,
+              onPageChanged: (index) => setState(() => _eventsPage = index),
+              itemBuilder: (context, index) => _buildEventTile(_events[index]),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         PageScrubber(
           count: _events.length,
           currentPage: _eventsPage,
           color: AppColors.darkCoffee,
           inactiveColor: AppColors.mediumCoffee,
           onPageSelected: (index) {
-            _eventsPageController.jumpToPage(index);
+            setState(() => _eventsPage = index);
+            _eventsPageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+            );
           },
         ),
       ],
@@ -537,10 +570,10 @@ class _NewsTabState extends State<NewsTab> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       elevation: 2,
-      color: AppColors.ivoryWhite,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.mediumCoffee.withValues(alpha: 0.25)),
+        side: const BorderSide(color: AppColors.lightCream),
       ),
       child: Padding(
         padding: const EdgeInsets.all(17),
@@ -669,7 +702,7 @@ class _NewsTabState extends State<NewsTab> {
     final source = article.source?.value?.trim();
     final thumbnailUrl = _thumbnailUrl(article);
     return Card(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       elevation: 2,
       clipBehavior: Clip.antiAlias,
       color: Colors.white,
@@ -857,7 +890,7 @@ class _NewsTabState extends State<NewsTab> {
 
   Widget _buildFallbackNewsTile(NewsPreview article) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       elevation: 1,
       color: Colors.white,
       child: ListTile(

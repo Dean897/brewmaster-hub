@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,7 +28,7 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   List<Recipe> _recommendations = const [];
   bool _isLoadingRecs = true;
-  final _recommendationPageController = PageController(viewportFraction: 0.78);
+  final _recommendationPageController = PageController(viewportFraction: 0.80);
   int _recommendationPage = 0;
 
   @override
@@ -123,11 +125,11 @@ class _HomeTabState extends State<HomeTab> {
           children: [
             // ─── Header + Greeting ───
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 48),
               decoration: const BoxDecoration(
                 color: AppColors.darkCoffee,
                 borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(28),
+                  bottom: Radius.circular(32),
                 ),
               ),
               child: Column(
@@ -194,50 +196,96 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 180,
-                    child: _isLoadingRecs
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.mediumCoffee,
-                            ),
-                          )
-                        : _recommendations.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Belum ada rekomendasi.',
-                              style: TextStyle(
-                                color: AppColors.mediumCoffee,
-                                fontSize: 13,
+                  Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 1,
+                    shadowColor: AppColors.darkCoffee.withValues(alpha: 0.08),
+                    color: Colors.white,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      side: const BorderSide(color: AppColors.lightCream),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 236,
+                            child: _isLoadingRecs
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.mediumCoffee,
+                                    ),
+                                  )
+                                : _recommendations.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'Belum ada rekomendasi.',
+                                      style: TextStyle(
+                                        color: AppColors.mediumCoffee,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                : ScrollConfiguration(
+                                    behavior: ScrollConfiguration.of(context)
+                                        .copyWith(
+                                      dragDevices: {
+                                        PointerDeviceKind.touch,
+                                        PointerDeviceKind.mouse,
+                                        PointerDeviceKind.trackpad,
+                                        PointerDeviceKind.stylus,
+                                      },
+                                    ),
+                                    child: PageView.builder(
+                                      controller:
+                                          _recommendationPageController,
+                                      physics:
+                                          const BouncingScrollPhysics(),
+                                      itemCount: _recommendations.length,
+                                      onPageChanged: (index) => setState(
+                                          () => _recommendationPage = index),
+                                      itemBuilder: (context, index) {
+                                        final recipe =
+                                            _recommendations[index];
+                                        return _RecommendationCard(
+                                          recipe: recipe,
+                                          onTap: () => _open(
+                                            context,
+                                            RecipeDetailScreen(
+                                                recipe: recipe),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                          ),
+                          if (!_isLoadingRecs && _recommendations.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: PageScrubber(
+                                count: _recommendations.length,
+                                currentPage: _recommendationPage,
+                                color: AppColors.darkCoffee,
+                                inactiveColor: AppColors.mediumCoffee,
+                                height: 26,
+                                onPageSelected: (index) {
+                                  setState(() => _recommendationPage = index);
+                                  _recommendationPageController.animateToPage(
+                                    index,
+                                    duration:
+                                        const Duration(milliseconds: 250),
+                                    curve: Curves.easeOutCubic,
+                                  );
+                                },
                               ),
                             ),
-                          )
-                        : PageView.builder(
-                            controller: _recommendationPageController,
-                            itemCount: _recommendations.length,
-                            onPageChanged: (index) =>
-                                setState(() => _recommendationPage = index),
-                            itemBuilder: (context, index) {
-                              final recipe = _recommendations[index];
-                              return _RecommendationCard(
-                                recipe: recipe,
-                                onTap: () => _open(
-                                  context,
-                                  RecipeDetailScreen(recipe: recipe),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  if (!_isLoadingRecs && _recommendations.length > 1)
-                    PageScrubber(
-                      count: _recommendations.length,
-                      currentPage: _recommendationPage,
-                      color: AppColors.ivoryWhite,
-                      inactiveColor: AppColors.lightCream,
-                      onPageSelected: (index) =>
-                          _recommendationPageController.jumpToPage(index),
+                        ],
+                      ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -334,25 +382,25 @@ class _RecommendationCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RecipeImage(
                   imageUrl: recipe.imageUrl,
                   width: double.infinity,
-                  height: 64,
-                  borderRadius: 12,
-                  iconSize: 28,
+                  height: 115,
+                  borderRadius: 13,
+                  iconSize: 36,
                 ),
-                const Spacer(),
+                const SizedBox(height: 10),
                 Text(
                   recipe.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.ivoryWhite,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -363,23 +411,23 @@ class _RecommendationCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.lightCream,
-                    fontSize: 10,
+                    fontSize: 11,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     const Icon(
                       Icons.timer_outlined,
-                      size: 12,
+                      size: 13,
                       color: AppColors.lightCream,
                     ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 4),
                     Text(
                       '${recipe.duration} menit',
                       style: const TextStyle(
                         color: AppColors.lightCream,
-                        fontSize: 10,
+                        fontSize: 11,
                       ),
                     ),
                   ],

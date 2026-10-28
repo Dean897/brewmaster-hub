@@ -9,6 +9,7 @@ class PageScrubber extends StatelessWidget {
     required this.onPageSelected,
     this.color = AppColors.darkCoffee,
     this.inactiveColor = AppColors.mediumCoffee,
+    this.height = 26,
     super.key,
   });
 
@@ -17,12 +18,15 @@ class PageScrubber extends StatelessWidget {
   final ValueChanged<int> onPageSelected;
   final Color color;
   final Color inactiveColor;
+  final double height;
 
-  void _selectAt(double localX, double width) {
-    if (count <= 1 || width <= 0) {
+  void _selectAt(double localX, double totalWidth, double trackWidth) {
+    if (count <= 1 || totalWidth <= 0 || trackWidth <= 0) {
       return;
     }
-    final page = ((localX / width) * (count - 1)).round().clamp(0, count - 1);
+    final startX = (totalWidth - trackWidth) / 2;
+    final relativeX = localX - startX;
+    final page = ((relativeX / trackWidth) * count).floor().clamp(0, count - 1);
     onPageSelected(page);
   }
 
@@ -33,41 +37,69 @@ class PageScrubber extends StatelessWidget {
     }
 
     final page = currentPage.clamp(0, count - 1);
+    final trackWidth = (count * 20.0 + 32.0).clamp(80.0, 220.0);
+
     return SizedBox(
       width: double.infinity,
-      height: 36,
+      height: height,
       child: LayoutBuilder(
-        builder: (context, constraints) => GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) =>
-              _selectAt(details.localPosition.dx, constraints.maxWidth),
-          onHorizontalDragStart: (details) =>
-              _selectAt(details.localPosition.dx, constraints.maxWidth),
-          onHorizontalDragUpdate: (details) =>
-              _selectAt(details.localPosition.dx, constraints.maxWidth),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(count, (index) {
-              final isSelected = page == index;
-              return Expanded(
-                child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    width: isSelected ? 24 : 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? color
-                          : inactiveColor.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+        builder: (context, constraints) {
+          final totalWidth = constraints.maxWidth;
+          return MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (details) =>
+                  _selectAt(details.localPosition.dx, totalWidth, trackWidth),
+              onHorizontalDragStart: (details) =>
+                  _selectAt(details.localPosition.dx, totalWidth, trackWidth),
+              onHorizontalDragUpdate: (details) =>
+                  _selectAt(details.localPosition.dx, totalWidth, trackWidth),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: inactiveColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(count, (index) {
+                      final isSelected = page == index;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                          width: isSelected ? 20 : 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? color
+                                : inactiveColor.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.28),
+                                      blurRadius: 3,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
-              );
-            }),
-          ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
